@@ -1,11 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Namaste JavaScript - Closures</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Namaste JavaScript — Closures & Garbage Collection</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 26px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 24px;
+  }
+  .lesson h2 { font-size: 1.15rem; margin-bottom: 10px; }
+  .explain { color: var(--muted); margin: 8px 0 14px; font-size: 0.94rem; }
+  .explain strong { color: var(--text); }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px; overflow-x: auto; font-size: 0.84rem; line-height: 1.6;
+    margin-bottom: 14px; font-family: Consolas, monospace;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .cm { color: #5c6398; font-style: italic; }
+  .numlit { color: #f78c6c; } .hl-x { color: var(--green); font-weight: bold; }
+  .hl-z { color: var(--red); font-weight: bold; }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 10px 18px;
+    border-radius: 8px; font-size: 0.93rem; font-weight: 600; cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  button:active { transform: scale(0.95); }
+  button.green { background: var(--green); }
+  .steps { margin: 10px 0 4px; }
+  .steps div { padding: 5px 0; font-size: 0.92rem; }
+  .steps .key { color: var(--yellow); font-weight: bold; }
+  .steps code {
+    background: #0b0e1a; padding: 1px 8px; border-radius: 5px;
+    font-family: Consolas, monospace; color: var(--green); font-size: 0.85rem;
+  }
+  .warn {
+    background: rgba(251,191,36,0.08); border-left: 3px solid var(--yellow);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    color: var(--muted); margin-top: 12px;
+  }
+  .warn strong { color: var(--yellow); }
+  .compare { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+  .compare > div {
+    flex: 1; min-width: 250px; background: var(--card2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    font-size: 0.88rem;
+  }
+  .compare h4 { font-size: 0.85rem; margin-bottom: 6px; }
+  .compare .keep h4 { color: var(--green); } .compare .gone h4 { color: var(--red); }
+  .compare code { font-family: Consolas, monospace; }
+</style>
 </head>
 <body>
-  <h1>Namaste 🙏 JavaScript</h1>
-  <script src="closure-gc.js"></script>
+<div class="wrap">
+  <h1>🗑️ Garbage Collection <span>&amp; Closures</span></h1>
+  <p class="subtitle">
+    The Namaste 🙏 JavaScript example. Two variables are born together — the closure saves one,
+    the garbage collector silently deletes the other. You'll catch V8 in the act.
+  </p>
+
+  <div class="lesson">
+    <h2>The code</h2>
+<pre><code><span class="kw">function</span> <span class="fn">a</span>() {
+  <span class="kw">var</span> <span class="hl-x">x</span> = <span class="numlit">0</span>,
+      <span class="hl-z">z</span> = <span class="numlit">10</span>;
+  <span class="kw">return function</span> <span class="fn">b</span>() {
+    <span class="kw">debugger</span>;           <span class="cm">// browser pauses here</span>
+    console.<span class="fn">log</span>(<span class="hl-x">x</span>);     <span class="cm">// b uses x… but NEVER uses z</span>
+  };
+}
+
+<span class="kw">var</span> y = <span class="fn">a</span>();   <span class="cm">// a() finishes — what survives in b's closure?</span>
+y();</code></pre>
+
+    <div class="compare">
+      <div class="keep"><h4>✅ x — KEPT</h4><code>b</code> references it → reachable → the closure keeps it alive.</div>
+      <div class="gone"><h4>🗑️ z — GARBAGE COLLECTED</h4>Nobody references it → V8 freed its memory the moment <code>a()</code> returned. It's not "undefined" — it's <em>gone</em>.</div>
+    </div>
+  </div>
+
+  <div class="lesson">
+    <h2>▶ Run the experiment</h2>
+    <div class="steps">
+      <div>1️⃣ Open DevTools first: press <span class="key">F12</span> (required — <code>debugger</code> only pauses when DevTools is open)</div>
+      <div>2️⃣ Click the button below → the browser <strong>freezes inside b</strong></div>
+      <div>3️⃣ Look at the <span class="key">Scope</span> panel (right side of the Sources tab): <strong style="color:var(--green)">Closure (a) → x: 0</strong> … and <strong style="color:var(--red)">no z anywhere!</strong></div>
+      <div>4️⃣ Still paused, switch to the <span class="key">Console</span> tab and type: <code>x</code> → prints 0 ✅ &nbsp; then <code>z</code> → <strong style="color:var(--red)">ReferenceError: z is not defined</strong> ❌</div>
+      <div>5️⃣ Press <span class="key">F8</span> to resume</div>
+    </div>
+    <button onclick="runOriginal()">▶ Run y() — z was garbage collected</button>
+    <div class="warn"><strong>Nothing happened?</strong> DevTools must be open <em>before</em> you click. Press F12, then click again.</div>
+  </div>
+
+  <div class="lesson">
+    <h2>🔬 The proof — one reference rescues z</h2>
+    <p class="explain">
+      Same code, but this version of <code>b</code> contains one extra line: <code>console.log(z)</code>.
+      Now <strong>b uses z</strong>, so the closure must keep it. Run it, and this time the Scope panel shows
+      <strong style="color:var(--green)">Closure (a2) → x: 0 AND z: 10</strong> — and typing <code>z</code> in the Console prints <code>10</code>.
+    </p>
+<pre><code><span class="kw">return function</span> <span class="fn">b</span>() {
+  <span class="kw">debugger</span>;
+  console.<span class="fn">log</span>(<span class="hl-x">x</span>);
+  console.<span class="fn">log</span>(<span class="hl-z">z</span>);   <span class="cm">// ← the ONE line that saves z from the garbage collector</span>
+};</code></pre>
+    <button class="green" onclick="runWithZ()">▶ Run version where b uses z — z survives!</button>
+    <p class="explain" style="margin-top:12px">
+      <strong>The lesson:</strong> closures don't blindly keep the whole outer scope. V8 scans the inner
+      function and keeps <strong>only the variables it actually references</strong> — everything else is
+      garbage-collected immediately. Memory is freed by <em>unreachability</em>: no reference = no mercy. 🗑️
+    </p>
+  </div>
+</div>
+
+<script>
+/* Version 1 — the Namaste JS original: b uses only x, so z is GC'd */
+function a() {
+  var x = 0,
+    z = 10;
+  return function b() {
+    debugger; // Scope panel → Closure (a): only x. Console: z → ReferenceError!
+    console.log("x =", x, "   (now try typing z in the Console — it's GONE)");
+  };
+}
+var y = a();
+
+function runOriginal() {
+  y();
+}
+
+/* Version 2 — identical, except b also uses z, so BOTH survive */
+function a2() {
+  var x = 0,
+    z = 10;
+  return function b() {
+    debugger; // Scope panel → Closure (a2): x AND z this time!
+    console.log("x =", x);
+    console.log("z =", z, "   ← alive, because this line references it");
+  };
+}
+var y2 = a2();
+
+function runWithZ() {
+  y2();
+}
+
+console.log("🗑️ GC demo loaded. Press F12, then use the buttons on the page — or call y() / y2() right here.");
+</script>
 </body>
 </html>

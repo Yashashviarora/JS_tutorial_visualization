@@ -1,0 +1,7 @@
+# Even simpler: docker compose up
+# Then open http://localhost:5500
+services:
+  site:
+    build: .
+    ports:
+      - "5500:80"
