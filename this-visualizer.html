@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>call · apply · bind</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 28px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 26px;
+  }
+  .lesson h2 { font-size: 1.2rem; margin-bottom: 4px; }
+  .lesson h2 .num {
+    display: inline-block; background: var(--accent); color: #0f1220;
+    width: 28px; height: 28px; border-radius: 50%; text-align: center;
+    line-height: 28px; font-size: 0.9rem; margin-right: 8px;
+  }
+  .explain { color: var(--muted); margin: 8px 0 14px; font-size: 0.94rem; }
+  .explain strong { color: var(--text); }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px; overflow-x: auto; font-size: 0.83rem; line-height: 1.55;
+    margin-bottom: 14px; font-family: Consolas, monospace;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+  .cm { color: #5c6398; font-style: italic; } .numlit { color: #f78c6c; }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    margin: 3px 6px 3px 0;
+  }
+  button:active { transform: scale(0.95); }
+  button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  button.red { background: var(--red); }
+  .stage {
+    display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; margin: 14px 0;
+  }
+  .who {
+    flex: 1; min-width: 200px; background: var(--card2); border: 2px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .who h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  .who .obj { font-family: Consolas, monospace; font-size: 0.85rem; }
+  .who.selected { border-color: var(--green); box-shadow: 0 0 12px rgba(74,222,128,0.25); }
+  .who.selected h4::after { content: "  ← this 🎯"; color: var(--green); }
+  .log {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; font-family: Consolas, monospace; font-size: 0.84rem;
+    max-height: 190px; overflow-y: auto; margin-top: 10px;
+  }
+  .log div { padding: 2px 0; }
+  .log .ok { color: var(--green); } .log .bad { color: var(--red); }
+  .log .info { color: var(--muted); } .log .warn { color: var(--yellow); }
+  .tip {
+    background: rgba(124,158,255,0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    color: var(--muted); margin-top: 12px;
+  }
+  .tip strong { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--card2); }
+  td code { font-family: Consolas, monospace; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎯 <span>this</span> · call · apply · bind</h1>
+  <p class="subtitle">
+    Inside a regular function, <strong style="color:var(--text)">this</strong> is decided by
+    <strong style="color:var(--text)">HOW the function is called</strong> — not where it's written.
+    call / apply / bind let YOU choose it. Watch the 🎯 jump between objects below.
+  </p>
+
+  <!-- ============ LESSON 1: the problem ============ -->
+  <div class="lesson">
+    <h2><span class="num">1</span>The problem: <code>this</code> follows the caller</h2>
+    <p class="explain">
+      One function, two ways to call it, two different <code>this</code>. The 🎯 marker shows
+      who <code>this</code> points at for each call:
+    </p>
+<pre><code><span class="kw">const</span> person = {
+  name: <span class="str">"Vivek"</span>,
+  <span class="fn">intro</span>() { console.log(<span class="str">"Hi, I am "</span> + <span class="kw">this</span>.name); }
+};
+person.<span class="fn">intro</span>();              <span class="cm">// this = person  (called as a method)</span>
+<span class="kw">const</span> loose = person.intro;  <span class="cm">// same function, taken out of the object…</span>
+<span class="fn">loose</span>();                     <span class="cm">// this = undefined 💥 (called alone)</span></code></pre>
+    <div class="stage">
+      <div class="who" id="w1-person"><h4>person</h4><div class="obj">{ name: "Vivek", intro: ƒ }</div></div>
+      <div class="who" id="w1-nobody"><h4>nobody / window</h4><div class="obj">(function called alone)</div></div>
+    </div>
+    <button onclick="l1method()">person.intro()</button>
+    <button class="red" onclick="l1loose()">loose()  — this is lost!</button>
+    <div class="log" id="log1"><div class="info">→ call it both ways and compare</div></div>
+  </div>
+
+  <!-- ============ LESSON 2: call & apply ============ -->
+  <div class="lesson">
+    <h2><span class="num">2</span>call &amp; apply — run NOW with the <code>this</code> you choose</h2>
+    <p class="explain">
+      <code>fn.call(obj, a, b)</code> and <code>fn.apply(obj, [a, b])</code> are identical except
+      how arguments are passed: <strong>C</strong>all = <strong>C</strong>ommas, <strong>A</strong>pply = <strong>A</strong>rray.
+      The function doesn't belong to either object — we lend it a <code>this</code> per call ("function borrowing"):
+    </p>
+<pre><code><span class="kw">function</span> <span class="fn">intro</span>(city, country) {
+  console.log(<span class="str">`I am ${</span><span class="kw">this</span>.name<span class="str">} from ${</span>city<span class="str">}, ${</span>country<span class="str">}`</span>);
+}
+<span class="kw">const</span> vivek = { name: <span class="str">"Vivek"</span> };
+<span class="kw">const</span> akshay = { name: <span class="str">"Akshay"</span> };
+
+intro.<span class="fn">call</span>(vivek, <span class="str">"Delhi"</span>, <span class="str">"India"</span>);      <span class="cm">// commas</span>
+intro.<span class="fn">apply</span>(akshay, [<span class="str">"Mumbai"</span>, <span class="str">"India"</span>]); <span class="cm">// array</span></code></pre>
+    <div class="stage">
+      <div class="who" id="w2-vivek"><h4>vivek</h4><div class="obj">{ name: "Vivek" }</div></div>
+      <div class="who" id="w2-akshay"><h4>akshay</h4><div class="obj">{ name: "Akshay" }</div></div>
+    </div>
+    <button onclick="l2(true,  'vivek')">intro.call(vivek, "Delhi", "India")</button>
+    <button onclick="l2(true,  'akshay')">intro.call(akshay, "Mumbai", "India")</button>
+    <button onclick="l2(false, 'vivek')">intro.apply(vivek, ["Delhi","India"])</button>
+    <button onclick="l2(false, 'akshay')">intro.apply(akshay, ["Mumbai","India"])</button>
+    <div class="log" id="log2"><div class="info">→ same function, any this you want</div></div>
+  </div>
+
+  <!-- ============ LESSON 3: bind ============ -->
+  <div class="lesson">
+    <h2><span class="num">3</span>bind — lock <code>this</code> for LATER</h2>
+    <p class="explain">
+      <code>bind</code> runs <strong>nothing</strong>. It returns a <strong>new function</strong> whose
+      <code>this</code> is permanently locked. No matter who calls it later — a button, a timer,
+      anyone — <code>this</code> can't be lost anymore:
+    </p>
+<pre><code><span class="kw">const</span> boundIntro = intro.<span class="fn">bind</span>(vivek);  <span class="cm">// nothing runs — a new function is returned</span>
+<span class="fn">boundIntro</span>(<span class="str">"Delhi"</span>, <span class="str">"India"</span>);         <span class="cm">// this = vivek, forever 🔒</span>
+
+<span class="cm">// even passed to setTimeout (which calls it as "nobody"):</span>
+<span class="fn">setTimeout</span>(boundIntro, <span class="numlit">1000</span>, <span class="str">"Delhi"</span>, <span class="str">"India"</span>);  <span class="cm">// still Vivek! ✓</span></code></pre>
+    <button onclick="l3make()">1. create: bound = intro.bind(vivek)</button>
+    <button onclick="l3call()">2. call bound("Delhi","India")</button>
+    <button class="gray" onclick="l3timer()">3. setTimeout(bound, 1000) — this survives!</button>
+    <button class="red" onclick="l3unbound()">compare: setTimeout(intro, 1000) — lost 💥</button>
+    <div class="log" id="log3"><div class="info">→ do steps 1, 2, 3 in order, then the red comparison</div></div>
+    <div class="tip"><strong>bind = closure + HOF!</strong> You can build it yourself with what you already know:
+      <br><code style="color:var(--green)">function myBind(fn, obj) { return (...args) => fn.apply(obj, args); }</code>
+      <br>The returned function keeps <code>obj</code> in its 🎒 backpack — exactly like debounce keeps timerId. (Classic interview question: "polyfill bind".)</div>
+  </div>
+
+  <!-- ============ LESSON 4: cheat sheet ============ -->
+  <div class="lesson">
+    <h2><span class="num">4</span>Cheat sheet</h2>
+    <table>
+      <tr><th>Method</th><th>Runs when?</th><th>Args</th><th>Returns</th></tr>
+      <tr><td><code>fn.call(obj, a, b)</code></td><td>NOW</td><td><strong>C</strong>ommas</td><td>fn's result</td></tr>
+      <tr><td><code>fn.apply(obj, [a,b])</code></td><td>NOW</td><td><strong>A</strong>rray</td><td>fn's result</td></tr>
+      <tr><td><code>fn.bind(obj, a?)</code></td><td>LATER</td><td>optionally pre-filled</td><td><strong>new function</strong> 🔒</td></tr>
+    </table>
+    <p class="explain">
+      <strong>Real-world uses:</strong> fixing <code>this</code> in callbacks/event handlers (the #1 use),
+      function borrowing (<code>Array.prototype.slice.call(arguments)</code> in old code),
+      <code>Math.max.apply(null, arr)</code> before spread syntax existed, and partial application
+      (<code>const double = multiply.bind(null, 2)</code>).
+      <br><br>
+      <strong>Modern note:</strong> arrow functions don't have their own <code>this</code> — they inherit it
+      from where they're <em>written</em> (like a closure over this!). That's why arrows + spread syntax
+      replaced many call/apply/bind uses. But interviews still love all three.
+    </p>
+  </div>
+</div>
+
+<script>
+function logTo(id, msg, cls) {
+  const box = document.getElementById(id);
+  const line = document.createElement("div");
+  line.textContent = msg; if (cls) line.className = cls;
+  box.appendChild(line); box.scrollTop = box.scrollHeight;
+}
+function select(zoneIds, chosen) {
+  zoneIds.forEach(z => document.getElementById(z).classList.toggle("selected", z === chosen));
+}
+
+/* ---------- Lesson 1 ---------- */
+const person = {
+  name: "Vivek",
+  intro() { return "Hi, I am " + (this && this.name ? this.name : "undefined 💥"); }
+};
+function l1method() {
+  select(["w1-person", "w1-nobody"], "w1-person");
+  logTo("log1", 'person.intro() → "' + person.intro() + '"   (this = person)', "ok");
+}
+function l1loose() {
+  const loose = person.intro;
+  select(["w1-person", "w1-nobody"], "w1-nobody");
+  logTo("log1", 'loose() → "' + loose() + '"   (called alone → this lost)', "bad");
+  logTo("log1", "same function object — only the WAY of calling changed", "info");
+}
+
+/* ---------- Lesson 2 ---------- */
+function intro(city, country) {
+  return `I am ${this.name} from ${city}, ${country}`;
+}
+const people = { vivek: { name: "Vivek" }, akshay: { name: "Akshay" } };
+function l2(isCall, who) {
+  const args = who === "vivek" ? ["Delhi", "India"] : ["Mumbai", "India"];
+  select(["w2-vivek", "w2-akshay"], "w2-" + who);
+  const result = isCall ? intro.call(people[who], ...args) : intro.apply(people[who], args);
+  logTo("log2", (isCall ? "call" : "apply") + " → \"" + result + "\"", "ok");
+}
+
+/* ---------- Lesson 3 ---------- */
+let bound = null;
+function l3make() {
+  bound = intro.bind(people.vivek);
+  logTo("log3", "bound created. NOTHING ran — bind returned a NEW function with this 🔒 vivek in its backpack", "warn");
+}
+function l3call() {
+  if (!bound) return logTo("log3", "do step 1 first!", "bad");
+  logTo("log3", 'bound("Delhi","India") → "' + bound("Delhi", "India") + '"', "ok");
+}
+function l3timer() {
+  if (!bound) return logTo("log3", "do step 1 first!", "bad");
+  logTo("log3", "setTimeout(bound, 1000) scheduled — the timer will call it as 'nobody'...", "info");
+  setTimeout(() => {
+    logTo("log3", '⏰ timer fired → "' + bound("Delhi", "India") + '"  — this SURVIVED, thanks to bind 🔒', "ok");
+  }, 1000);
+}
+function l3unbound() {
+  logTo("log3", "setTimeout with the UNbound intro scheduled...", "info");
+  setTimeout(() => {
+    try {
+      const r = intro("Delhi", "India"); // called plainly → this.name explodes or is undefined
+      logTo("log3", '⏰ timer fired → "' + r + '"', "bad");
+    } catch (e) {
+      logTo("log3", "⏰ timer fired → TypeError: cannot read name of undefined 💥 (this was lost)", "bad");
+    }
+  }, 1000);
+}
+</script>
+</body>
+</html>
