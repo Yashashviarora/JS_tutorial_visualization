@@ -1,0 +1,68 @@
+# CI for JavaScript Visualized
+# Runs automatically on every push / pull request (on GitHub's servers, for free).
+# It answers one question: "if someone clones this repo right now, does it work?"
+#
+# Jobs:
+#   1. Every .js file must be valid JavaScript (node --check catches syntax errors)
+#   2. The Docker image must build
+#   3. A container from that image must actually serve every page with HTTP 200
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check-js-syntax:
+    name: JS syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: node --check every .js file
+        run: |
+          for f in *.js; do
+            node --check "$f"
+            echo "✅ $f — valid syntax"
+          done
+
+  docker-build-and-smoke-test:
+    name: Docker build + serve every page
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image
+        run: docker build -t js-visualized .
+
+      - name: Start a container from it
+        run: docker run -d --rm -p 5500:80 --name site js-visualized
+
+      - name: Wait for nginx to be ready
+        run: sleep 3
+
+      - name: Smoke test — every page must return HTTP 200
+        run: |
+          pages="index.html closure-visualizer.html closures-devtools.html closure-gc.html leak-demo.html event-loop-visualizer.html hof-visualizer.html"
+          for page in $pages; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:5500/$page")
+            echo "$page → HTTP $code"
+            if [ "$code" != "200" ]; then
+              echo "❌ $page is broken!"
+              exit 1
+            fi
+          done
+          echo "✅ all pages served successfully"
+
+      - name: Stop the container
+        if: always()
+        run: docker stop site || true
