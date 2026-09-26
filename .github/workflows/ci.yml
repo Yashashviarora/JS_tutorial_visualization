@@ -52,7 +52,7 @@ jobs:
 
       - name: Smoke test — every page must return HTTP 200
         run: |
-          pages="index.html closure-visualizer.html closures-devtools.html closure-gc.html leak-demo.html event-loop-visualizer.html hof-visualizer.html"
+          pages="index.html closure-visualizer.html closures-devtools.html closure-gc.html leak-demo.html event-loop-visualizer.html hof-visualizer.html this-visualizer.html"
           for page in $pages; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:5500/$page")
             echo "$page → HTTP $code"
