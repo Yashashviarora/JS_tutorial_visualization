@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Higher-Order Functions</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 28px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 26px;
+  }
+  .lesson h2 { font-size: 1.2rem; margin-bottom: 4px; }
+  .lesson h2 .num {
+    display: inline-block; background: var(--accent); color: #0f1220;
+    width: 28px; height: 28px; border-radius: 50%; text-align: center;
+    line-height: 28px; font-size: 0.9rem; margin-right: 8px;
+  }
+  .explain { color: var(--muted); margin: 8px 0 14px; font-size: 0.94rem; }
+  .explain strong { color: var(--text); }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px; overflow-x: auto; font-size: 0.83rem; line-height: 1.55;
+    margin-bottom: 14px; font-family: Consolas, monospace;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+  .cm { color: #5c6398; font-style: italic; } .numlit { color: #f78c6c; }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    margin: 3px 6px 3px 0;
+  }
+  button:active { transform: scale(0.95); }
+  button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .pipeline {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; margin: 12px 0; min-height: 66px;
+  }
+  .chip {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 13px; font-family: Consolas, monospace; font-size: 0.9rem;
+    animation: pop 0.3s ease;
+  }
+  .chip.out { border-color: var(--green); color: var(--green); }
+  .chip.dropped { border-color: var(--red); color: var(--red); text-decoration: line-through; opacity: 0.55; }
+  .chip.acc { border-color: var(--yellow); color: var(--yellow); }
+  .arrow { color: var(--muted); font-size: 1.1rem; }
+  @keyframes pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .log {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; font-family: Consolas, monospace; font-size: 0.83rem;
+    max-height: 170px; overflow-y: auto; margin-top: 10px;
+  }
+  .log div { padding: 1px 0; }
+  .log .ok { color: var(--green); } .log .info { color: var(--muted); }
+  .log .drop { color: var(--red); } .log .accl { color: var(--yellow); }
+  .tip {
+    background: rgba(124,158,255,0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    color: var(--muted); margin-top: 12px;
+  }
+  .tip strong { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚙ Higher-Order <span>Functions</span></h1>
+  <p class="subtitle">
+    A Higher-Order Function (HOF) is a function that <strong style="color:var(--text)">takes a function as an argument, or returns a function, or both</strong>.
+    Possible only because in JavaScript functions are <strong style="color:var(--text)">first-class citizens</strong> — values you can store, pass, and return like numbers.
+  </p>
+
+  <!-- ============ LESSON 1: first-class functions ============ -->
+  <div class="lesson">
+    <h2><span class="num">1</span>Functions are values — the superpower behind everything</h2>
+    <p class="explain">
+      You can put a function in a variable, pass it to another function, and return it from one.
+      If you've done the closures tab, you've already SEEN this: <code style="color:var(--green)">createCounter</code> <strong>returned a function</strong> — so it was a HOF all along!
+    </p>
+<pre><code><span class="kw">const</span> greet = <span class="kw">function</span> () { <span class="kw">return</span> <span class="str">"hello"</span>; };  <span class="cm">// stored in a variable</span>
+<span class="kw">function</span> <span class="fn">callTwice</span>(fn) { fn(); fn(); }              <span class="cm">// passed as an argument → HOF</span>
+<span class="kw">function</span> <span class="fn">makeCounter</span>() { <span class="kw">return function</span> () {...}; } <span class="cm">// returned → HOF (+ closure!)</span></code></pre>
+    <button id="btn-first">Run: pass greet into callTwice</button>
+    <div class="log" id="log1"><div class="info">→ click to see a function travel as a value</div></div>
+  </div>
+
+  <!-- ============ LESSON 2: the Namaste JS radius example ============ -->
+  <div class="lesson">
+    <h2><span class="num">2</span>The Namaste JS classic — extract WHAT varies, share what doesn't</h2>
+    <p class="explain">
+      Bad code: <code>calculateArea(radius)</code>, <code>calculateCircumference(radius)</code>… each repeats the same loop (violates <strong>DRY</strong> — Don't Repeat Yourself).
+      Insight: the <strong>loop is the same</strong>, only the <strong>math differs</strong>. So pass the math in as a function!
+    </p>
+<pre><code><span class="kw">const</span> radius = [<span class="numlit">1</span>, <span class="numlit">2</span>, <span class="numlit">3</span>, <span class="numlit">4</span>];
+
+<span class="kw">const</span> area          = r =&gt; Math.PI * r * r;   <span class="cm">// just the logic, no loop</span>
+<span class="kw">const</span> circumference = r =&gt; <span class="numlit">2</span> * Math.PI * r;
+<span class="kw">const</span> diameter      = r =&gt; <span class="numlit">2</span> * r;
+
+<span class="kw">function</span> <span class="fn">calculate</span>(arr, logic) {        <span class="cm">// ← HOF: the reusable loop</span>
+  <span class="kw">const</span> output = [];
+  <span class="kw">for</span> (<span class="kw">const</span> r <span class="kw">of</span> arr) output.push(<span class="fn">logic</span>(r));
+  <span class="kw">return</span> output;
+}
+<span class="fn">calculate</span>(radius, area);   <span class="cm">// same loop, ANY logic 🎯</span></code></pre>
+    <button data-logic="area">calculate(radius, area)</button>
+    <button data-logic="circumference">calculate(radius, circumference)</button>
+    <button data-logic="diameter">calculate(radius, diameter)</button>
+    <div class="pipeline" id="pipe2"><span class="chip">1</span><span class="chip">2</span><span class="chip">3</span><span class="chip">4</span><span class="arrow">→ pick a logic…</span></div>
+    <div class="tip"><strong>This IS map:</strong> our <code>calculate(arr, logic)</code> is a homemade <code>arr.map(logic)</code>. You just wrote a polyfill of map without noticing.</div>
+  </div>
+
+  <!-- ============ LESSON 3: map / filter / reduce ============ -->
+  <div class="lesson">
+    <h2><span class="num">3</span>The big three HOFs: map · filter · reduce</h2>
+    <p class="explain">
+      All three take <strong>your function</strong> and apply it across an array — but each answers a different question:
+      <strong>map</strong> = "transform each" · <strong>filter</strong> = "keep which?" · <strong>reduce</strong> = "boil down to one value".
+      Watch each element flow through:
+    </p>
+<pre><code><span class="kw">const</span> nums = [<span class="numlit">1</span>, <span class="numlit">2</span>, <span class="numlit">3</span>, <span class="numlit">4</span>, <span class="numlit">5</span>, <span class="numlit">6</span>];
+nums.<span class="fn">map</span>(n =&gt; n * <span class="numlit">2</span>);              <span class="cm">// [2,4,6,8,10,12] — same length, transformed</span>
+nums.<span class="fn">filter</span>(n =&gt; n % <span class="numlit">2</span> === <span class="numlit">0</span>);    <span class="cm">// [2,4,6] — only the ones that pass the test</span>
+nums.<span class="fn">reduce</span>((acc, n) =&gt; acc + n, <span class="numlit">0</span>); <span class="cm">// 21 — one single value</span></code></pre>
+    <button id="btn-map">map(n =&gt; n * 2)</button>
+    <button id="btn-filter">filter(n =&gt; n % 2 === 0)</button>
+    <button id="btn-reduce">reduce((acc, n) =&gt; acc + n, 0)</button>
+    <button id="btn-chain" class="gray">chain: filter → map → reduce</button>
+    <div class="pipeline" id="pipe3"><span class="arrow">→ pick one…</span></div>
+    <div class="log" id="log3"><div class="info">→ the log shows YOUR function being called once per element</div></div>
+  </div>
+
+  <!-- ============ LESSON 4: debounce is a HOF ============ -->
+  <div class="lesson">
+    <h2><span class="num">4</span>Full circle: debounce is a HOF + closure</h2>
+    <p class="explain">
+      Now you can name what debounce really is: a <strong>higher-order function</strong> (takes <code>fn</code>, returns a new function)
+      whose returned function uses a <strong>closure</strong> (remembers <code>timerId</code>) and the <strong>event loop</strong> (setTimeout / clearTimeout).
+      Three concepts, one tool:
+    </p>
+<pre><code><span class="kw">function</span> <span class="fn">debounce</span>(fn, delay) {   <span class="cm">// HOF: function in…</span>
+  <span class="kw">let</span> timerId = <span class="kw">null</span>;            <span class="cm">// closure: remembered between calls</span>
+  <span class="kw">return function</span> (...args) {    <span class="cm">// …function out</span>
+    <span class="fn">clearTimeout</span>(timerId);       <span class="cm">// event loop: cancel browser timer</span>
+    timerId = <span class="fn">setTimeout</span>(() =&gt; fn(...args), delay);
+  };
+}</code></pre>
+    <p class="explain">
+      Other everyday HOFs you now recognize: <code>addEventListener(type, fn)</code>, <code>setTimeout(fn, ms)</code>,
+      <code>arr.sort(compareFn)</code>, <code>promise.then(fn)</code> — you've been using HOFs since your first line of JS.
+    </p>
+    <div class="tip"><strong>Interview one-liner:</strong> "A higher-order function takes and/or returns functions.
+      map/filter/reduce take one; debounce and createCounter return one. It works because functions are first-class values in JavaScript."</div>
+  </div>
+</div>
+
+<script>
+function logTo(id, msg, cls) {
+  const box = document.getElementById(id);
+  const line = document.createElement("div");
+  line.textContent = msg; if (cls) line.className = cls;
+  box.appendChild(line); box.scrollTop = box.scrollHeight;
+}
+
+/* ---------- Lesson 1: pass a function as a value ---------- */
+document.getElementById("btn-first").onclick = () => {
+  const greet = () => "hello 👋";
+  function callTwice(fn) {           // fn is JUST a variable holding a function
+    logTo("log1", "callTwice received a function as its argument: " + fn, "info");
+    logTo("log1", "1st call → " + fn(), "ok");
+    logTo("log1", "2nd call → " + fn(), "ok");
+  }
+  callTwice(greet);
+  logTo("log1", "greet travelled INTO callTwice like any value — that makes callTwice a HOF", "info");
+};
+
+/* ---------- Lesson 2: the calculate(arr, logic) HOF ---------- */
+const logics = {
+  area:          { fn: r => (Math.PI * r * r).toFixed(2),  label: "π·r²" },
+  circumference: { fn: r => (2 * Math.PI * r).toFixed(2),  label: "2πr" },
+  diameter:      { fn: r => 2 * r,                          label: "2r" },
+};
+function calculate(arr, logic) {     // the HOF — one loop, any logic
+  const output = [];
+  for (const r of arr) output.push(logic(r));
+  return output;
+}
+document.querySelectorAll("[data-logic]").forEach(btn => {
+  btn.onclick = () => {
+    const { fn, label } = logics[btn.dataset.logic];
+    const input = [1, 2, 3, 4];
+    const result = calculate(input, fn);
+    const pipe = document.getElementById("pipe2");
+    pipe.innerHTML = "";
+    input.forEach((n, i) => {
+      pipe.insertAdjacentHTML("beforeend",
+        `<span class="chip">${n}</span><span class="arrow">—${label}→</span><span class="chip out">${result[i]}</span>` +
+        (i < input.length - 1 ? '<span class="arrow">·</span>' : ""));
+    });
+  };
+});
+
+/* ---------- Lesson 3: map / filter / reduce, element by element ---------- */
+const nums = [1, 2, 3, 4, 5, 6];
+function showPipe(html) { document.getElementById("pipe3").innerHTML = html; }
+
+document.getElementById("btn-map").onclick = () => {
+  document.getElementById("log3").innerHTML = "";
+  let html = "";
+  const out = nums.map(n => {
+    const r = n * 2;
+    logTo("log3", `your fn called with ${n} → returned ${r}`, "ok");
+    return r;
+  });
+  nums.forEach((n, i) => html += `<span class="chip">${n}</span><span class="arrow">→</span><span class="chip out">${out[i]}</span><span class="arrow"> </span>`);
+  showPipe(html);
+  logTo("log3", `map result: [${out}] — same length, every element transformed`, "info");
+};
+
+document.getElementById("btn-filter").onclick = () => {
+  document.getElementById("log3").innerHTML = "";
+  let html = "";
+  const out = nums.filter(n => {
+    const keep = n % 2 === 0;
+    logTo("log3", `your fn called with ${n} → returned ${keep} → ${keep ? "KEEP ✓" : "drop ✗"}`, keep ? "ok" : "drop");
+    html += `<span class="chip ${keep ? "out" : "dropped"}">${n}</span>`;
+    return keep;
+  });
+  showPipe(html + `<span class="arrow">⇒ [${out}]</span>`);
+  logTo("log3", `filter result: [${out}] — your fn is a yes/no judge for each element`, "info");
+};
+
+document.getElementById("btn-reduce").onclick = () => {
+  document.getElementById("log3").innerHTML = "";
+  let html = `<span class="chip acc">acc = 0</span>`;
+  const out = nums.reduce((acc, n) => {
+    const next = acc + n;
+    logTo("log3", `your fn called with (acc=${acc}, n=${n}) → returns ${next}`, "accl");
+    html += `<span class="arrow">+${n}→</span><span class="chip acc">${next}</span>`;
+    return next;
+  }, 0);
+  showPipe(html);
+  logTo("log3", `reduce result: ${out} — the accumulator rolled through every element like a snowball`, "info");
+};
+
+document.getElementById("btn-chain").onclick = () => {
+  document.getElementById("log3").innerHTML = "";
+  const evens   = nums.filter(n => n % 2 === 0);
+  const doubled = evens.map(n => n * 2);
+  const sum     = doubled.reduce((a, n) => a + n, 0);
+  logTo("log3", `[${nums}]`, "info");
+  logTo("log3", `  .filter(n => n % 2 === 0)  → [${evens}]`, "drop");
+  logTo("log3", `  .map(n => n * 2)           → [${doubled}]`, "ok");
+  logTo("log3", `  .reduce((a, n) => a + n, 0) → ${sum}`, "accl");
+  showPipe(`<span class="chip">[${nums}]</span><span class="arrow">filter→</span><span class="chip dropped">[${evens}]</span><span class="arrow">map→</span><span class="chip out">[${doubled}]</span><span class="arrow">reduce→</span><span class="chip acc">${sum}</span>`);
+  logTo("log3", "chaining: each HOF returns a new array, so the next one continues the pipeline", "info");
+};
+</script>
+</body>
+</html>

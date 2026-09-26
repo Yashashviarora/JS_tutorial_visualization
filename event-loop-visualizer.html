@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Event Loop Visualizer</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.5; padding: 20px 14px 60px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 16px; font-size: 0.92rem; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs button {
+    background: var(--card2); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600;
+  }
+  .tabs button.active { background: var(--accent); color: #0f1220; border-color: var(--accent); }
+  .layout { display: flex; gap: 14px; flex-wrap: wrap; }
+  .left { flex: 1.1; min-width: 320px; }
+  .right { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 12px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .panel h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  pre#code {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 0; font-size: 0.82rem; line-height: 1.7; overflow-x: auto;
+    font-family: Consolas, monospace;
+  }
+  pre#code .cl { padding: 0 14px; white-space: pre; }
+  pre#code .cl.hl { background: rgba(124,158,255,0.22); border-left: 3px solid var(--accent); }
+  .note {
+    background: rgba(124,158,255,0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    min-height: 74px; margin-top: 12px; color: var(--text);
+  }
+  .controls { margin-top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .controls button {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+  }
+  .controls button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .controls .stepinfo { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+  .zone { min-height: 68px; }
+  .zone h3.stack { color: var(--accent); } .zone h3.api { color: var(--yellow); }
+  .zone h3.micro { color: var(--purple); } .zone h3.queue { color: var(--green); }
+  .zone h3.out { color: var(--text); }
+  .item {
+    display: block; background: #0b0e1a; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; margin: 5px 0;
+    font-family: Consolas, monospace; font-size: 0.8rem;
+    animation: pop 0.25s ease;
+  }
+  @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .zone.stackzone .item { border-left: 3px solid var(--accent); }
+  .zone.apizone .item { border-left: 3px solid var(--yellow); }
+  .zone.microzone .item { border-left: 3px solid var(--purple); }
+  .zone.queuezone .item { border-left: 3px solid var(--green); }
+  .zone .empty { color: #4a507a; font-size: 0.78rem; font-style: italic; padding: 4px 0; }
+  #console .item { border-left: 3px solid var(--text); color: var(--green); }
+  .loop-badge {
+    text-align: center; font-size: 0.8rem; color: var(--muted); padding: 4px;
+  }
+  .loop-badge.active { color: var(--green); font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔄 The Event Loop — Step by Step</h1>
+  <p class="subtitle">
+    Pick a scenario, then press <strong style="color:var(--accent)">Next ▶</strong> repeatedly (or Auto-play).
+    Watch code move between the <strong style="color:var(--accent)">Call Stack</strong> (runs now),
+    <strong style="color:var(--yellow)">Web APIs</strong> (browser's waiting room),
+    <strong style="color:var(--purple)">Microtask Queue</strong> (VIP line: promises) and
+    <strong style="color:var(--green)">Task Queue</strong> (normal line: timers, events).
+  </p>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="layout">
+    <div class="left">
+      <div class="panel">
+        <h3 style="color:var(--muted)">Code</h3>
+        <pre id="code"></pre>
+        <div class="note" id="note"></div>
+        <div class="controls">
+          <button id="prev" class="gray">◀ Back</button>
+          <button id="next">Next ▶</button>
+          <button id="auto" class="gray">▶▶ Auto-play</button>
+          <button id="restart" class="gray">↺ Restart</button>
+          <span class="stepinfo" id="stepinfo"></span>
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="panel zone stackzone"><h3 class="stack">📚 Call Stack (top runs now)</h3><div id="stack"></div></div>
+      <div class="panel zone apizone"><h3 class="api">⏲ Web APIs (browser waiting room)</h3><div id="api"></div></div>
+      <div class="panel zone microzone"><h3 class="micro">⚡ Microtask Queue (promises — always first!)</h3><div id="micro"></div></div>
+      <div class="panel zone queuezone"><h3 class="queue">📥 Task Queue (timers & events)</h3><div id="queue"></div></div>
+      <div class="loop-badge" id="loopbadge">🔄 event loop: watching...</div>
+      <div class="panel zone" id="consolepanel"><h3 class="out">🖥 Console output</h3><div id="console"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Each scenario = the code lines + a list of STEPS.
+   Every step is a full snapshot: which line is highlighted, what's on
+   the stack / web APIs / queues / console, and a teaching note.
+   ===================================================================== */
+
+const scenarios = [
+
+/* ────────────────────────── SCENARIO 1 ────────────────────────── */
+{
+  name: "1. setTimeout basics",
+  code: [
+'console.log("A");',
+'setTimeout(() => {',
+'  console.log("B");',
+'}, 1000);',
+'console.log("C");',
+  ],
+  steps: [
+    { note: "The script starts. The whole script runs as one big task on the Call Stack — think of it as main().",
+      stack: ["main()"] },
+    { hl: 0, note: "console.log(\"A\") is pushed onto the stack, prints A, and pops off. Simple synchronous work.",
+      stack: ["main()", 'console.log("A")'], out: ["A"] },
+    { hl: 1, note: "setTimeout does NOT wait! It hands the callback + '1000ms' to the BROWSER (Web APIs) and instantly returns a timer id. The callback is NOT on the stack.",
+      stack: ["main()", "setTimeout(cb, 1000)"], api: ["⏲ timer #1 · 1000ms → cb"], out: ["A"] },
+    { hl: 4, note: "The script continues immediately — C prints BEFORE B, even though B's line is above. The timer is still counting in browser land.",
+      stack: ["main()", 'console.log("C")'], api: ["⏲ timer #1 · 1000ms → cb"], out: ["A", "C"] },
+    { note: "main() finishes → the Call Stack is EMPTY. JavaScript is idle. The browser's timer keeps counting on its own.",
+      api: ["⏲ timer #1 · counting..."], out: ["A", "C"] },
+    { note: "⏰ 1000ms passed! The browser moves the callback from Web APIs into the TASK QUEUE. It still doesn't run — it waits in line.",
+      queue: ["cb: console.log(\"B\")"], out: ["A", "C"], loop: true },
+    { note: "🔄 THE EVENT LOOP's one job: 'Is the stack empty? Is something in a queue? Then push it!' The callback finally enters the Call Stack.",
+      stack: ["cb"], out: ["A", "C"], loop: true },
+    { hl: 2, note: "NOW the callback runs: B prints. Total order was A, C, B.",
+      stack: ["cb", 'console.log("B")'], out: ["A", "C", "B"] },
+    { note: "Done. Key lesson: setTimeout(fn, 1000) means 'AT LEAST 1000ms' — the callback must also wait for an empty stack and its turn in the queue.",
+      out: ["A", "C", "B"] },
+  ],
+},
+
+/* ────────────────────────── SCENARIO 2 ────────────────────────── */
+{
+  name: "2. Promise vs setTimeout(0)",
+  code: [
+'console.log("A");',
+'setTimeout(() => console.log("timeout"), 0);',
+'Promise.resolve().then(() =>',
+'  console.log("promise"));',
+'console.log("B");',
+  ],
+  steps: [
+    { note: "The interview classic: a 0ms timeout vs an already-resolved promise. Which callback runs first? Let's watch.",
+      stack: ["main()"] },
+    { hl: 0, note: "A prints synchronously.",
+      stack: ["main()", 'console.log("A")'], out: ["A"] },
+    { hl: 1, note: "setTimeout with 0ms — the browser takes the callback. 0ms means 'move to the queue as soon as possible', NOT 'run now'.",
+      stack: ["main()", "setTimeout(cb, 0)"], api: ["⏲ timer #1 · 0ms → cb"], out: ["A"] },
+    { hl: 2, note: "The promise is already resolved, so its .then callback goes straight into the MICROTASK queue — a separate, higher-priority line.",
+      stack: ["main()", ".then(cb)"], api: ["⏲ timer #1 · 0ms → cb"], micro: ["cb: log(\"promise\")"], out: ["A"] },
+    { hl: 4, note: "Meanwhile the 0ms timer already expired → its callback moved into the TASK queue. B prints. Both queues now hold one callback each!",
+      stack: ["main()", 'console.log("B")'], micro: ["cb: log(\"promise\")"], queue: ["cb: log(\"timeout\")"], out: ["A", "B"] },
+    { note: "main() done, stack empty. Two callbacks wait. THE RULE: the event loop ALWAYS empties the ENTIRE microtask queue before taking even one normal task.",
+      micro: ["cb: log(\"promise\")"], queue: ["cb: log(\"timeout\")"], out: ["A", "B"], loop: true },
+    { hl: 3, note: "Microtask first: 'promise' prints — beating the 0ms timeout that was scheduled EARLIER.",
+      stack: ["promise cb"], queue: ["cb: log(\"timeout\")"], out: ["A", "B", "promise"], loop: true },
+    { hl: 1, note: "Microtask queue empty → NOW the task queue gets its turn: 'timeout' prints last.",
+      stack: ["timeout cb"], out: ["A", "B", "promise", "timeout"], loop: true },
+    { note: "Final order: A, B, promise, timeout. Promises (microtasks) always jump the queue ahead of timers and events (macrotasks). This exact question is asked in interviews constantly.",
+      out: ["A", "B", "promise", "timeout"] },
+  ],
+},
+
+/* ────────────────────────── SCENARIO 3 ────────────────────────── */
+{
+  name: "3. Debounce (closure + event loop!)",
+  code: [
+'function debounce(fn, delay) {',
+'  let timerId = null;   // 🎒 closure!',
+'  return function (...args) {',
+'    clearTimeout(timerId);      // ✂',
+'    timerId = setTimeout(() =>',
+'      fn(...args), delay);      // ⏲',
+'  };',
+'}',
+'',
+'const search = debounce(',
+'  q => console.log("API:", q), 500);',
+'',
+'search("c");   // keystroke 1',
+'// 100ms later:',
+'search("cl");  // keystroke 2',
+'// ...then 500ms of silence',
+  ],
+  steps: [
+    { note: "Debounce = closures + the event loop working together. The closure (line 2) remembers timerId between calls; the Web APIs zone holds the actual timers. Watch both halves.",
+      stack: ["main()"] },
+    { hl: 9, note: "debounce(fn, 500) runs ONCE: it creates the backpack { fn, delay: 500, timerId: null } and returns the inner function — which we name `search`. debounce itself never runs again; every keystroke below runs the INNER function with this backpack. 🎒 timerId = null",
+      stack: ["main()", "debounce(fn, 500)"] },
+    { hl: 12, note: "Keystroke 1: search(\"c\") — the inner function is pushed onto the stack. args = [\"c\"].",
+      stack: ["main()", 'search("c")'] },
+    { hl: 3, note: "clearTimeout(timerId) → clearTimeout(null): the backpack says no timer exists yet, so this does nothing. Safe no-op. 🎒 timerId = null",
+      stack: ["main()", 'search("c")', "clearTimeout(null)"] },
+    { hl: 4, note: "setTimeout hands the callback to the browser with a 500ms fuse, instantly returns ticket #1, and we store it in the CLOSURE. 🎒 timerId = #1",
+      stack: ["main()", 'search("c")'], api: ["⏲ timer #1 · 500ms → API:\"c\""] },
+    { note: "Stack empty. Timer #1 is counting: 100ms... 200ms... If it reaches 500ms it will queue its callback. But the user is still typing... 🎒 timerId = #1",
+      api: ["⏲ timer #1 · 400ms left"] },
+    { hl: 14, note: "Keystroke 2 at 100ms: search(\"cl\") — the SAME inner function runs again, with the SAME backpack. args = [\"cl\"]. 🎒 timerId = #1 (remembered from keystroke 1!)",
+      stack: ["main()", 'search("cl")'] },
+    { hl: 3, note: "clearTimeout(timerId) → clearTimeout(#1): the closure hands over ticket #1 and the browser DELETES timer #1 from the waiting room. 🗑 Its callback never reaches any queue — \"c\" will never be searched.",
+      stack: ["main()", 'search("cl")', "clearTimeout(#1) 🗑"], api: [] },
+    { hl: 4, note: "A fresh timer #2 (full 500ms) is scheduled for \"cl\" and its ticket overwrites the old one in the closure. The fuse is reset. 🎒 timerId = #2",
+      stack: ["main()", 'search("cl")'], api: ["⏲ timer #2 · 500ms → API:\"cl\""] },
+    { hl: 15, note: "Silence. Nobody calls search again, so nobody cancels timer #2. It counts all the way down: 500ms done.",
+      api: ["⏲ timer #2 · 0ms — done!"] },
+    { note: "Timer #2 expired → the browser moves its callback into the Task Queue.",
+      queue: ['cb: fn("cl")'], loop: true },
+    { note: "🔄 Stack empty + task waiting → the event loop pushes the callback onto the stack.",
+      stack: ["cb"], loop: true },
+    { hl: 5, note: "The callback runs fn(\"cl\") — fn is also remembered by the closure! — printing API: cl. ONE api call for two keystrokes.",
+      stack: ["cb", 'fn("cl") → console.log'], out: ['API: cl'] },
+    { note: "Full picture: the CLOSURE stores the ticket (timerId) and fn between calls; the WEB APIs zone holds the actual timer; clearTimeout uses the ticket to delete it. Closure = memory, event loop = timing. Together = debounce.",
+      out: ['API: cl'] },
+  ],
+},
+
+/* ────────────────── SCENARIO 4 (Namaste JS diagram) ────────────────── */
+{
+  name: "4. Namaste JS: fetch vs setTimeout",
+  code: [
+'console.log("Start");',
+'',
+'setTimeout(function cbT() {',
+'  console.log("CB SetTimeout");',
+'}, 5000);',
+'',
+'fetch("https://api.netflix.com")',
+'.then(function cbF() {',
+'  console.log("CB Netflix");',
+'});',
+'',
+'console.log("End");',
+  ],
+  steps: [
+    { note: "The exact example from Namaste JavaScript! The script starts — a Global Execution Context (GEC) is created and pushed onto the Call Stack. Everything below runs inside it.",
+      stack: ["GEC (main)"] },
+    { hl: 0, note: "console.log(\"Start\") → prints Start. Fun fact from the video: console itself is a Web API too — the browser gives it to us via window; it's not part of core JavaScript!",
+      stack: ["GEC (main)", 'console.log("Start")'], out: ["Start"] },
+    { hl: 2, note: "setTimeout registers callback cbT in the Web APIs environment and attaches a 5000ms timer. cbT does NOT run — it's parked in browser land. The stack moves on immediately.",
+      stack: ["GEC (main)", "setTimeout(cbT, 5000)"], api: ["⏲ timer · 5000ms → cbT"], out: ["Start"] },
+    { hl: 6, note: "fetch registers cbF in the Web APIs environment too, and fires a real network request to Netflix's servers. Now TWO things wait in browser land: a timer counting down, and a network request in flight.",
+      stack: ["GEC (main)", "fetch(...)"], api: ["⏲ timer · 5000ms → cbT", "🌐 fetch → waiting for Netflix... → cbF"], out: ["Start"] },
+    { hl: 11, note: "The stack doesn't wait for either — console.log(\"End\") runs right away. All synchronous code finishes first, always.",
+      stack: ["GEC (main)", 'console.log("End")'], api: ["⏲ timer · 5000ms → cbT", "🌐 fetch → waiting... → cbF"], out: ["Start", "End"] },
+    { note: "GEC pops off — the Call Stack is EMPTY. JavaScript is done with its work. Meanwhile: the timer keeps ticking, and somewhere the response is travelling back from Netflix's servers.",
+      api: ["⏲ timer · counting... → cbT", "🌐 fetch → waiting... → cbF"], out: ["Start", "End"] },
+    { note: "📨 Say the Netflix data arrives after just 50ms. cbF is moved into the MICROTASK QUEUE — promise callbacks (like .then) are microtasks, the high-priority line. The timer still has ~4950ms to go!",
+      api: ["⏲ timer · ~4950ms left → cbT"], micro: ["cbF"], out: ["Start", "End"], loop: true },
+    { hl: 8, note: "🔄 Event loop: stack empty + microtask waiting → push cbF! It prints CB Netflix — nearly 5 seconds BEFORE the setTimeout callback, even though setTimeout was written first in the code.",
+      stack: ["cbF", 'console.log("CB Netflix")'], api: ["⏲ timer · counting... → cbT"], out: ["Start", "End", "CB Netflix"], loop: true },
+    { note: "cbF done, popped off. The page just waits now... 3s... 4s... finally the timer hits 5000ms → the browser moves cbT into the CALLBACK QUEUE (a.k.a. Task Queue — the normal-priority line).",
+      queue: ["cbT"], out: ["Start", "End", "CB Netflix"], loop: true },
+    { hl: 3, note: "🔄 Event loop pushes cbT onto the empty stack → CB SetTimeout finally prints, ~5 seconds after it was registered.",
+      stack: ["cbT", 'console.log("CB SetTimeout")'], out: ["Start", "End", "CB Netflix", "CB SetTimeout"], loop: true },
+    { note: "Final order: Start, End, CB Netflix, CB SetTimeout. Takeaways: ① the stack never waits; ② Web APIs do the waiting; ③ microtasks (.then) beat the callback queue; ④ if microtasks kept coming forever, cbT would keep getting delayed — that's called STARVATION of the callback queue.",
+      out: ["Start", "End", "CB Netflix", "CB SetTimeout"] },
+  ],
+},
+];
+
+/* ───────────────────────── rendering engine ───────────────────────── */
+let cur = 0, step = 0, autoTimer = null;
+
+function renderZone(id, items, emptyText) {
+  const el = document.getElementById(id);
+  el.innerHTML = "";
+  if (!items || items.length === 0) {
+    el.innerHTML = '<div class="empty">' + emptyText + "</div>";
+    return;
+  }
+  // call stack renders top-of-stack first (reverse), queues render in order
+  const list = id === "stack" ? [...items].reverse() : items;
+  for (const it of list) {
+    const d = document.createElement("span");
+    d.className = "item"; d.textContent = it;
+    el.appendChild(d);
+  }
+}
+
+function render() {
+  const sc = scenarios[cur];
+  const st = sc.steps[step];
+
+  // code with highlight
+  const codeEl = document.getElementById("code");
+  codeEl.innerHTML = "";
+  sc.code.forEach((line, i) => {
+    const d = document.createElement("div");
+    d.className = "cl" + (st.hl === i ? " hl" : "");
+    d.textContent = line || " ";
+    codeEl.appendChild(d);
+  });
+
+  renderZone("stack", st.stack, "(empty — JavaScript is idle)");
+  renderZone("api", st.api, "(no timers / events waiting)");
+  renderZone("micro", st.micro, "(no microtasks)");
+  renderZone("queue", st.queue, "(no tasks)");
+  renderZone("console", st.out, "(nothing printed yet)");
+
+  document.getElementById("note").textContent = st.note;
+  document.getElementById("stepinfo").textContent = "step " + (step + 1) + " / " + sc.steps.length;
+  const badge = document.getElementById("loopbadge");
+  badge.textContent = st.loop ? "🔄 event loop: ACTIVE — moving callbacks!" : "🔄 event loop: watching...";
+  badge.className = "loop-badge" + (st.loop ? " active" : "");
+}
+
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  document.getElementById("auto").textContent = "▶▶ Auto-play";
+}
+
+document.getElementById("next").onclick = () => {
+  if (step < scenarios[cur].steps.length - 1) { step++; render(); } else stopAuto();
+};
+document.getElementById("prev").onclick = () => { if (step > 0) { step--; render(); } };
+document.getElementById("restart").onclick = () => { stopAuto(); step = 0; render(); };
+document.getElementById("auto").onclick = function () {
+  if (autoTimer) { stopAuto(); return; }
+  this.textContent = "⏸ Pause";
+  autoTimer = setInterval(() => {           // yes — the visualizer itself uses the event loop 😄
+    if (step < scenarios[cur].steps.length - 1) { step++; render(); } else stopAuto();
+  }, 2200);
+};
+
+const tabsEl = document.getElementById("tabs");
+scenarios.forEach((sc, i) => {
+  const b = document.createElement("button");
+  b.textContent = sc.name;
+  b.onclick = () => { stopAuto(); cur = i; step = 0; document.querySelectorAll("#tabs button").forEach(x => x.classList.remove("active")); b.classList.add("active"); render(); };
+  if (i === 0) b.classList.add("active");
+  tabsEl.appendChild(b);
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JavaScript Visualized — Learn by Seeing</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --yellow: #fbbf24;
+    --purple: #c084fc; --red: #f87171; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); display: flex; flex-direction: column;
+  }
+  header {
+    padding: 14px 20px 0; border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  header h1 { font-size: 1.15rem; margin-bottom: 2px; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav button {
+    background: transparent; color: var(--muted); border: none;
+    border-bottom: 3px solid transparent; padding: 9px 14px;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    border-radius: 8px 8px 0 0;
+  }
+  nav button:hover { color: var(--text); background: var(--card2); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--card2); }
+  main { flex: 1; position: relative; }
+  iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: none; background: var(--bg);
+  }
+  .home {
+    position: absolute; inset: 0; overflow-y: auto; padding: 30px 20px 60px;
+  }
+  .home .inner { max-width: 800px; margin: 0 auto; }
+  .home h2 { font-size: 1.7rem; margin-bottom: 6px; }
+  .home .lead { color: var(--muted); margin-bottom: 26px; }
+  .path { display: flex; flex-direction: column; gap: 12px; }
+  .stop {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; cursor: pointer; display: flex; gap: 14px; align-items: flex-start;
+    text-align: left; width: 100%; color: var(--text); font: inherit;
+  }
+  .stop:hover { border-color: var(--accent); }
+  .stop .n {
+    background: var(--accent); color: #0f1220; min-width: 30px; height: 30px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 0.9rem;
+  }
+  .stop h3 { font-size: 1rem; margin-bottom: 3px; }
+  .stop p { color: var(--muted); font-size: 0.86rem; }
+  .stop .tag { font-size: 0.7rem; color: var(--green); text-transform: uppercase; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🎒 JavaScript <span>Visualized</span></h1>
+    <p>Closures · Debounce · Garbage Collection · Memory Leaks · Event Loop — learn by watching, not just reading. Built while following Namaste JavaScript.</p>
+    <nav id="nav"></nav>
+  </header>
+  <main id="main"></main>
+
+<script>
+/* The learning path — order matters, each tab builds on the previous one. */
+const pages = [
+  { id: "home", title: "🏠 Start Here", src: null },
+  { id: "closures", title: "1 · Closures", src: "closure-visualizer.html",
+    desc: "What a closure is: the counter, private variables (bank account), the var-vs-let trap, and a live debounce search box. Every demo shows the closure's 'backpack' updating in real time.",
+    tag: "start here · interactive buttons" },
+  { id: "devtools", title: "2 · DevTools Lab", src: "closures-devtools.html",
+    desc: "See closures in the browser's own UI. Type lesson1() … lesson5() in the Console (F12) — the debugger pauses and the Scope panel literally shows you 'Closure'.",
+    tag: "open the console (F12) for this one" },
+  { id: "gc", title: "3 · Garbage Collection", src: "closure-gc.html",
+    desc: "The Namaste JS example: function a() { var x = 0, z = 10; ... }. While paused, x exists in the closure but z throws ReferenceError — the engine garbage-collected it because the inner function never uses it.",
+    tag: "needs F12 open · pauses in debugger" },
+  { id: "leak", title: "4 · Memory Leak", src: "leak-demo.html",
+    desc: "The dark side of closures: a leaky SPA that stacks scroll listeners (each pinning 4 MB) vs the fixed version that cleans up. Click 'Open Chats ×10' on both sides and feel the difference.",
+    tag: "scroll the boxes · feel the lag" },
+  { id: "loop", title: "5 · Event Loop", src: "event-loop-visualizer.html",
+    desc: "Step-by-step animation of the Call Stack, Web APIs, Microtask Queue and Task Queue. Four scenarios including Promise vs setTimeout(0), full debounce, and the Namaste JS fetch-vs-setTimeout example.",
+    tag: "press Next ▶ to step through" },
+  { id: "hof", title: "6 · Higher-Order Fns", src: "hof-visualizer.html",
+    desc: "Functions as values: the Namaste JS radius/area/circumference example (building your own map!), then map/filter/reduce animated element by element — and why debounce is a HOF + closure + event loop in one.",
+    tag: "watch your function get called per element" },
+];
+
+const nav = document.getElementById("nav");
+const main = document.getElementById("main");
+let loaded = {};   // keep iframes alive so switching tabs doesn't lose your progress
+
+function show(id) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.id === id));
+  // hide everything, show the chosen one (iframes stay loaded in background)
+  [...main.children].forEach(el => el.style.display = "none");
+  const page = pages.find(p => p.id === id);
+  if (!page.src) { document.getElementById("home").style.display = "block"; return; }
+  if (!loaded[id]) {
+    const f = document.createElement("iframe");
+    f.src = page.src; f.id = "frame-" + id;
+    main.appendChild(f); loaded[id] = f;
+  }
+  loaded[id].style.display = "block";
+  location.hash = id;   // so you can bookmark/share a specific tab
+}
+
+pages.forEach(p => {
+  const b = document.createElement("button");
+  b.textContent = p.title; b.dataset.id = p.id;
+  b.onclick = () => show(p.id);
+  nav.appendChild(b);
+});
+
+/* home screen: the learning path */
+const home = document.createElement("div");
+home.className = "home"; home.id = "home";
+home.innerHTML = `
+  <div class="inner">
+    <h2>Learn JavaScript's hardest concepts — visually</h2>
+    <p class="lead">Follow the tabs in order. Each one is interactive: click, type, scroll, step —
+    and watch what the engine and the browser actually do. Best with DevTools (F12) open.</p>
+    <div class="path" id="path"></div>
+  </div>`;
+main.appendChild(home);
+const path = home.querySelector("#path");
+pages.filter(p => p.src).forEach((p, i) => {
+  const s = document.createElement("button");
+  s.className = "stop";
+  s.innerHTML = `<div class="n">${i + 1}</div>
+    <div><h3>${p.title.replace(/^\d+ · /, "")}</h3><p>${p.desc}</p><span class="tag">${p.tag}</span></div>`;
+  s.onclick = () => show(p.id);
+  path.appendChild(s);
+});
+
+/* open the tab from the URL hash, or home */
+show(location.hash && pages.some(p => p.id === location.hash.slice(1)) ? location.hash.slice(1) : "home");
+</script>
+</body>
+</html>

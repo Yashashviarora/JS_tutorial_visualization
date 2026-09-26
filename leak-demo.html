@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Listener Leak Demo</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.5; padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: 6px; }
+  .subtitle { color: var(--muted); margin-bottom: 20px; font-size: 0.95rem; }
+  .apps { display: flex; gap: 20px; flex-wrap: wrap; }
+  .app {
+    flex: 1; min-width: 320px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 14px; padding: 18px;
+  }
+  .app.leaky  { border-top: 4px solid var(--red); }
+  .app.fixed  { border-top: 4px solid var(--green); }
+  .app h2 { font-size: 1.1rem; margin-bottom: 10px; }
+  .app.leaky h2 { color: var(--red); } .app.fixed h2 { color: var(--green); }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 8px 14px;
+    border-radius: 8px; font-weight: 600; cursor: pointer; margin: 3px 4px 3px 0;
+    font-size: 0.88rem;
+  }
+  button:active { transform: scale(0.95); }
+  button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .stats { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  .stat {
+    flex: 1; min-width: 90px; background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 10px; text-align: center;
+  }
+  .stat .big { font-size: 1.4rem; font-weight: bold; }
+  .stat .lbl { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .leaky .stat .big { color: var(--red); } .fixed .stat .big { color: var(--green); }
+  .scrollbox {
+    height: 140px; overflow-y: scroll; background: #0b0e1a;
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+    margin: 10px 0; color: var(--muted); font-size: 0.85rem;
+  }
+  .scrollbox .filler { height: 1200px; background:
+    repeating-linear-gradient(180deg, transparent 0 38px, #14182b 38px 40px); padding-top: 4px; }
+  .log {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; font-family: Consolas, monospace; font-size: 0.78rem;
+    height: 150px; overflow-y: auto;
+  }
+  .log div { padding: 1px 0; }
+  .log .add { color: var(--red); } .log .ok { color: var(--green); }
+  .log .run { color: var(--yellow); } .log .info { color: var(--muted); }
+  .fixed .log .add { color: var(--green); }
+  .explain {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; margin-top: 20px; font-size: 0.93rem; color: var(--muted);
+  }
+  .explain strong { color: var(--text); }
+  .explain code { background: #0b0e1a; padding: 1px 7px; border-radius: 5px;
+    font-family: Consolas, monospace; color: var(--green); font-size: 0.85rem; }
+  .warn { color: var(--yellow); font-size: 0.85rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧟 The Event-Listener Leak — feel it, then fix it</h1>
+  <p class="subtitle">
+    Both mini-apps below simulate an SPA where clicking <strong>"Open Chats"</strong> runs
+    <code style="color:#4ade80">openChatView()</code>. The user opens and leaves the view many times.
+    Same user behavior, two different codes. Click "Open Chats ×10" on BOTH sides, then scroll
+    each gray box and compare!
+  </p>
+
+  <div class="apps">
+    <!-- ══════════════ LEAKY APP ══════════════ -->
+    <div class="app leaky">
+      <h2>❌ Leaky app (no cleanup)</h2>
+      <button onclick="leaky.openChat()">Open Chats</button>
+      <button onclick="for(let i=0;i<10;i++) leaky.openChat()">Open Chats ×10</button>
+      <button class="gray" onclick="leaky.openSettings()">Open Settings (leave chat)</button>
+      <div class="stats">
+        <div class="stat"><div class="big" id="l-listeners">0</div><div class="lbl">Listeners attached</div></div>
+        <div class="stat"><div class="big" id="l-runs">0</div><div class="lbl">Handler runs on last scroll</div></div>
+        <div class="stat"><div class="big" id="l-mem">0 MB</div><div class="lbl">Memory pinned by closures</div></div>
+      </div>
+      <div class="scrollbox" id="l-scroll"><div class="filler">⬇ scroll me and watch "handler runs" ⬇</div></div>
+      <div class="log" id="l-log"><div class="info">→ click "Open Chats ×10", then scroll the box</div></div>
+    </div>
+
+    <!-- ══════════════ FIXED APP ══════════════ -->
+    <div class="app fixed">
+      <h2>✅ Fixed app (cleanup before re-add)</h2>
+      <button onclick="fixed.openChat()">Open Chats</button>
+      <button onclick="for(let i=0;i<10;i++) fixed.openChat()">Open Chats ×10</button>
+      <button class="gray" onclick="fixed.openSettings()">Open Settings (leave chat)</button>
+      <div class="stats">
+        <div class="stat"><div class="big" id="f-listeners">0</div><div class="lbl">Listeners attached</div></div>
+        <div class="stat"><div class="big" id="f-runs">0</div><div class="lbl">Handler runs on last scroll</div></div>
+        <div class="stat"><div class="big" id="f-mem">0 MB</div><div class="lbl">Memory pinned by closures</div></div>
+      </div>
+      <div class="scrollbox" id="f-scroll"><div class="filler">⬇ scroll me — always smooth ⬇</div></div>
+      <div class="log" id="f-log"><div class="info">→ click "Open Chats ×10", then scroll the box</div></div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <strong>What to observe:</strong> after "Open Chats ×10" — the leaky side shows
+    <strong style="color:var(--red)">10 listeners, ~40 MB pinned</strong>, and ONE scroll runs the handler
+    10× (each doing fake work → scroll feels heavy; click ×10 a few more times and it gets worse).
+    The fixed side always shows <strong style="color:var(--green)">1 listener, ~4 MB</strong>, and scroll runs it once.
+    <br><br>
+    <strong>The entire fix is 3 lines</strong> — remember the previous listener (in a closure!) and remove it
+    before adding a new one:
+    <pre style="background:#0b0e1a;border-radius:8px;padding:10px 14px;margin-top:8px;overflow-x:auto;"><code>if (currentCleanup) currentCleanup();          <span style="color:#5c6398">// ✂ undo the previous visit first</span>
+box.addEventListener("scroll", onScroll);
+currentCleanup = () => box.removeEventListener("scroll", onScroll);</code></pre>
+    <div class="warn">⚠ Bonus experiment: open DevTools Console and run
+      <code>getEventListeners(document.getElementById('l-scroll'))</code> — Chrome lists every stacked
+      listener on the leaky box. Try the same for <code>'f-scroll'</code> → always just one.</div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Both apps share the same helpers; the ONLY difference between them
+   is 3 lines of cleanup. Read leakyApp first, then fixedApp.
+   ===================================================================== */
+
+function logTo(id, msg, cls) {
+  const box = document.getElementById(id);
+  const line = document.createElement("div");
+  line.textContent = msg; if (cls) line.className = cls;
+  box.appendChild(line); box.scrollTop = box.scrollHeight;
+}
+
+/* ---------------------------------------------------------------
+   ❌ THE LEAKY APP
+   openChat() adds a scroll listener EVERY time and never removes
+   the old one. Exactly the bug from real SPAs.
+   --------------------------------------------------------------- */
+const leaky = (function () {
+  const box = document.getElementById("l-scroll");
+  let listenerCount = 0;
+  let runsThisScroll = 0;
+  let scrollTimer = null;
+
+  function openChat() {
+    // simulate loading the chat data — each visit loads it AGAIN,
+    // and the closure below pins THIS copy in memory forever:
+    const messages = new Array(500000).fill("💬");   // ~4 MB per visit
+
+    box.addEventListener("scroll", function onScroll() {
+      // closure: pins `messages` (4 MB) as long as this listener exists
+      runsThisScroll++;
+      for (let i = 0; i < 3000000; i++);             // fake work per handler per event
+      void messages.length;
+
+      // update the "runs per scroll" stat (debounced-ish so it's readable)
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        document.getElementById("l-runs").textContent = runsThisScroll;
+        logTo("l-log", "1 scroll burst → handlers ran " + runsThisScroll + " times 🔥", "run");
+        runsThisScroll = 0;
+      }, 200);
+    });
+
+    listenerCount++;
+    document.getElementById("l-listeners").textContent = listenerCount;
+    document.getElementById("l-mem").textContent = (listenerCount * 4) + " MB";
+    logTo("l-log", "+ listener #" + listenerCount + " added — old ones still there! (+4 MB pinned)", "add");
+  }
+
+  function openSettings() {
+    // the app just swaps the view's HTML... nobody removes the listener!
+    logTo("l-log", "→ left chat view. Listeners removed: NONE 😱 still " + listenerCount + " attached", "info");
+  }
+
+  return { openChat, openSettings };
+})();
+
+/* ---------------------------------------------------------------
+   ✅ THE FIXED APP
+   Identical code, plus 3 lines: it remembers a cleanup function
+   (a closure!) and calls it before adding a new listener, and
+   also when leaving the view.
+   --------------------------------------------------------------- */
+const fixed = (function () {
+  const box = document.getElementById("f-scroll");
+  let runsThisScroll = 0;
+  let scrollTimer = null;
+  let currentCleanup = null;      // 🎒 remembers how to undo the last visit
+
+  function openChat() {
+    if (currentCleanup) {
+      currentCleanup();           // ✂ THE FIX: undo the previous visit first
+      logTo("f-log", "✂ removed previous listener — its 4 MB closure is now garbage-collectable", "ok");
+    }
+
+    const messages = new Array(500000).fill("💬");   // ~4 MB, same as leaky side
+
+    function onScroll() {
+      runsThisScroll++;
+      for (let i = 0; i < 3000000; i++);             // same fake work
+      void messages.length;
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        document.getElementById("f-runs").textContent = runsThisScroll;
+        logTo("f-log", "1 scroll burst → handler ran " + runsThisScroll + " time(s) ✓", "run");
+        runsThisScroll = 0;
+      }, 200);
+    }
+
+    box.addEventListener("scroll", onScroll);
+
+    // build the undo — a closure remembering exactly which function to detach:
+    currentCleanup = function () {
+      box.removeEventListener("scroll", onScroll);
+      currentCleanup = null;
+    };
+
+    document.getElementById("f-listeners").textContent = "1";
+    document.getElementById("f-mem").textContent = "4 MB";
+    logTo("f-log", "+ listener added (always exactly ONE alive)", "add");
+  }
+
+  function openSettings() {
+    if (currentCleanup) {
+      currentCleanup();
+      document.getElementById("f-listeners").textContent = "0";
+      document.getElementById("f-mem").textContent = "0 MB";
+      logTo("f-log", "→ left chat view → listener removed, memory freed 🗑️", "ok");
+    } else {
+      logTo("f-log", "→ left chat view (nothing to clean)", "info");
+    }
+  }
+
+  return { openChat, openSettings };
+})();
+</script>
+</body>
+</html>
