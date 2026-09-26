@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Function Currying</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 28px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 26px;
+  }
+  .lesson h2 { font-size: 1.2rem; margin-bottom: 4px; }
+  .lesson h2 .num {
+    display: inline-block; background: var(--accent); color: #0f1220;
+    width: 28px; height: 28px; border-radius: 50%; text-align: center;
+    line-height: 28px; font-size: 0.9rem; margin-right: 8px;
+  }
+  .explain { color: var(--muted); margin: 8px 0 14px; font-size: 0.94rem; }
+  .explain strong { color: var(--text); }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px; overflow-x: auto; font-size: 0.83rem; line-height: 1.55;
+    margin-bottom: 14px; font-family: Consolas, monospace;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+  .cm { color: #5c6398; font-style: italic; } .numlit { color: #f78c6c; }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    margin: 3px 6px 3px 0;
+  }
+  button:active { transform: scale(0.95); }
+  button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  button.green { background: var(--green); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .chain { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
+  .bp {
+    background: var(--card2); border: 2px dashed var(--purple); border-radius: 12px;
+    padding: 10px 14px; min-width: 150px; animation: pop 0.3s ease;
+  }
+  .bp h4 { color: var(--purple); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+  .bp .v { font-family: Consolas, monospace; font-size: 0.85rem; }
+  .bp .v b { color: var(--yellow); }
+  .bp.result { border-color: var(--green); border-style: solid; }
+  .bp.result h4 { color: var(--green); }
+  .arrow { color: var(--muted); font-size: 1.3rem; }
+  @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .log {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; font-family: Consolas, monospace; font-size: 0.84rem;
+    max-height: 180px; overflow-y: auto; margin-top: 10px;
+  }
+  .log div { padding: 2px 0; }
+  .log .ok { color: var(--green); } .log .info { color: var(--muted); } .log .warn { color: var(--yellow); }
+  .tip {
+    background: rgba(124,158,255,0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    color: var(--muted); margin-top: 12px;
+  }
+  .tip strong { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🍛 Function <span>Currying</span></h1>
+  <p class="subtitle">
+    Currying turns <strong style="color:var(--text)">f(a, b, c)</strong> into
+    <strong style="color:var(--text)">f(a)(b)(c)</strong> — a chain of one-argument functions.
+    Each call collects one argument into a <strong style="color:var(--purple)">closure 🎒</strong> and returns
+    a function waiting for the next. Closures as an argument-collecting machine.
+  </p>
+
+  <!-- ============ LESSON 1: step by step ============ -->
+  <div class="lesson">
+    <h2><span class="num">1</span>sum(1)(2)(3) — watch the backpacks stack up</h2>
+<pre><code><span class="kw">function</span> <span class="fn">sum</span>(a) {
+  <span class="kw">return function</span> (b) {
+    <span class="kw">return function</span> (c) {
+      <span class="kw">return</span> a + b + c;   <span class="cm">// a and b arrive via the closures 🎒</span>
+    };
+  };
+}</code></pre>
+    <p class="explain">Click the buttons <strong>in order</strong>. Notice: the first two calls compute NOTHING — they only collect.</p>
+    <button id="s1" onclick="step1()">sum(1)</button>
+    <button id="s2" onclick="step2()" disabled>(2)</button>
+    <button id="s3" onclick="step3()" disabled>(3)</button>
+    <button class="gray" onclick="resetChain()">↺ reset</button>
+    <div class="chain" id="chain"><span class="arrow">→ click sum(1)…</span></div>
+    <div class="log" id="log1"><div class="info">→ each step returns a new function carrying a bigger backpack</div></div>
+  </div>
+
+  <!-- ============ LESSON 2: partial application ============ -->
+  <div class="lesson">
+    <h2><span class="num">2</span>The real power: stop halfway and reuse</h2>
+    <p class="explain">
+      Fill in only the first argument, save the half-done function, reuse it forever.
+      This is <strong>partial application</strong> — building specialized functions from a general one:
+    </p>
+<pre><code><span class="kw">const</span> multiply = (a) =&gt; (b) =&gt; a * b;
+
+<span class="kw">const</span> double = <span class="fn">multiply</span>(<span class="numlit">2</span>);   <span class="cm">// a=2 locked in the backpack</span>
+<span class="kw">const</span> triple = <span class="fn">multiply</span>(<span class="numlit">3</span>);   <span class="cm">// separate backpack with a=3</span></code></pre>
+    <button onclick="usePartial('double', 5)">double(5)</button>
+    <button onclick="usePartial('double', 50)">double(50)</button>
+    <button onclick="usePartial('triple', 5)">triple(5)</button>
+    <button onclick="usePartial('triple', 100)">triple(100)</button>
+    <div class="log" id="log2"><div class="info">→ two saved functions, two independent backpacks (sound familiar? counterA / counterB!)</div></div>
+    <div class="tip"><strong>Also possible with bind (tab 7!):</strong>
+      <code style="color:var(--green)">const double = multiply.bind(null, 2)</code> —
+      bind can pre-fill arguments, not just lock <code>this</code>. Two roads, same destination: a function with values baked into its backpack.</div>
+  </div>
+
+  <!-- ============ LESSON 3: infinite currying ============ -->
+  <div class="lesson">
+    <h2><span class="num">3</span>Interview classic: infinite currying — sum(1)(2)(3)…()</h2>
+<pre><code><span class="kw">function</span> <span class="fn">sum</span>(a) {
+  <span class="kw">return function</span> (b) {
+    <span class="kw">if</span> (b === <span class="kw">undefined</span>) <span class="kw">return</span> a;  <span class="cm">// empty call () → stop, return the total</span>
+    <span class="kw">return</span> <span class="fn">sum</span>(a + b);              <span class="cm">// else → fold it in, return a new collector</span>
+  };
+}
+<span class="fn">sum</span>(<span class="numlit">1</span>)(<span class="numlit">2</span>)(<span class="numlit">3</span>)(<span class="numlit">4</span>)();   <span class="cm">// 10</span></code></pre>
+    <p class="explain">Keep adding numbers; the running total lives in the closure. The empty call is the stop signal:</p>
+    <button onclick="inf(1)">(1)</button>
+    <button onclick="inf(2)">(2)</button>
+    <button onclick="inf(5)">(5)</button>
+    <button onclick="inf(10)">(10)</button>
+    <button class="green" onclick="infEnd()">( ) — finish!</button>
+    <div class="chain" id="chain3"><span class="arrow">→ running total appears here</span></div>
+    <div class="log" id="log3"><div class="info">→ every click returns a NEW collector closing over the new total</div></div>
+  </div>
+
+  <!-- ============ LESSON 4: summary ============ -->
+  <div class="lesson">
+    <h2><span class="num">4</span>Say it in one breath</h2>
+    <p class="explain">
+      <strong>Currying</strong> = converting f(a,b,c) into f(a)(b)(c), where each call captures one argument
+      in a closure and returns the next function. <strong>Why:</strong> partial application — preset some
+      arguments once (config, tokens, log levels) and reuse the specialized function everywhere.
+      <strong>How:</strong> nested closures, or <code>bind</code> with preset args.
+      It's closures (tab 1) + HOFs (tab 6) + bind's trick (tab 7) rolled into one pattern.
+    </p>
+  </div>
+</div>
+
+<script>
+function logTo(id, msg, cls) {
+  const box = document.getElementById(id);
+  const line = document.createElement("div");
+  line.textContent = msg; if (cls) line.className = cls;
+  box.appendChild(line); box.scrollTop = box.scrollHeight;
+}
+function bpHTML(title, vars, result) {
+  return `<div class="bp ${result ? "result" : ""}"><h4>${title}</h4><div class="v">${vars}</div></div>`;
+}
+
+/* ---------- Lesson 1: sum(1)(2)(3) ---------- */
+function sum(a) {
+  return function (b) {
+    return function (c) {
+      return a + b + c;
+    };
+  };
+}
+let f1 = null, f2 = null;
+const chain = document.getElementById("chain");
+
+function step1() {
+  f1 = sum(1);
+  chain.innerHTML = bpHTML("returned fn #1 🎒", "<b>a = 1</b> &nbsp;(collected, nothing computed)");
+  logTo("log1", "sum(1) → returned a function. Backpack: {a: 1}. No addition happened!", "warn");
+  document.getElementById("s1").disabled = true;
+  document.getElementById("s2").disabled = false;
+}
+function step2() {
+  f2 = f1(2);
+  chain.innerHTML += `<span class="arrow">→</span>` + bpHTML("returned fn #2 🎒", "<b>a = 1, b = 2</b> &nbsp;(still waiting…)");
+  logTo("log1", "(2) → returned ANOTHER function. Backpack: {a: 1, b: 2}. Still no addition!", "warn");
+  document.getElementById("s2").disabled = true;
+  document.getElementById("s3").disabled = false;
+}
+function step3() {
+  const result = f2(3);
+  chain.innerHTML += `<span class="arrow">→</span>` + bpHTML("RESULT ✓", "a + b + c = <b>" + result + "</b>", true);
+  logTo("log1", "(3) → all three collected → NOW it computes: 1 + 2 + 3 = " + result, "ok");
+  document.getElementById("s3").disabled = true;
+}
+function resetChain() {
+  f1 = f2 = null;
+  chain.innerHTML = '<span class="arrow">→ click sum(1)…</span>';
+  document.getElementById("s1").disabled = false;
+  document.getElementById("s2").disabled = true;
+  document.getElementById("s3").disabled = true;
+}
+
+/* ---------- Lesson 2: partial application ---------- */
+const multiply = (a) => (b) => a * b;
+const partials = { double: multiply(2), triple: multiply(3) };
+function usePartial(name, n) {
+  const result = partials[name](n);
+  const a = name === "double" ? 2 : 3;
+  logTo("log2", `${name}(${n}) → ${a} × ${n} = ${result}   (a=${a} came from ${name}'s backpack 🎒)`, "ok");
+}
+
+/* ---------- Lesson 3: infinite currying ---------- */
+function isum(a) {
+  return function (b) {
+    if (b === undefined) return a;
+    return isum(a + b);
+  };
+}
+let collector = null, expr = "sum";
+function inf(n) {
+  collector = collector ? collector(n) : isum(n);
+  expr += `(${n})`;
+  const total = collector(); // peek at the total (empty call returns it)
+  collector = isum(total);   // rebuild collector so peeking doesn't end the chain
+  document.getElementById("chain3").innerHTML =
+    `<span class="v" style="font-family:Consolas,monospace">${expr}…</span><span class="arrow">→</span>` +
+    bpHTML("current collector 🎒", "running total <b>a = " + total + "</b>");
+  logTo("log3", `(${n}) → new collector returned, closing over a = ${total}`, "warn");
+}
+function infEnd() {
+  if (!collector) return logTo("log3", "add some numbers first!", "info");
+  const result = collector();
+  document.getElementById("chain3").innerHTML +=
+    `<span class="arrow">→</span>` + bpHTML("RESULT ✓", expr + "() = <b>" + result + "</b>", true);
+  logTo("log3", `() → empty call = stop signal → returns the total: ${result}`, "ok");
+  collector = null; expr = "sum";
+}
+</script>
+</body>
+</html>

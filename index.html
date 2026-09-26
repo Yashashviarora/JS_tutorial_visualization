@@ -93,6 +93,9 @@ const pages = [
   { id: "this", title: "7 · call · apply · bind", src: "this-visualizer.html",
     desc: "`this` is decided by HOW a function is called — watch the 🎯 marker jump between objects. Lose `this`, fix it with call/apply, lock it forever with bind, and see why bind is secretly a closure + HOF.",
     tag: "the 🎯 shows who `this` points at" },
+  { id: "curry", title: "8 · Currying", src: "currying-visualizer.html",
+    desc: "f(a,b,c) → f(a)(b)(c): watch backpacks stack up as each call collects one argument, stop halfway for partial application (double/triple), and the interview classic — infinite currying sum(1)(2)(3)…().",
+    tag: "closures as an argument-collecting machine" },
 ];
 
 const nav = document.getElementById("nav");
