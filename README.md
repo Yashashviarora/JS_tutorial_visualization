@@ -37,6 +37,10 @@ Install the *Live Server* extension → right-click `index.html` → **Open with
 
 Extra file: `debounce-explained.js` — debounce annotated line-by-line in slow motion; paste it into the Console and it simulates fast typing.
 
+## 📒 Written notes
+
+The [`notes/`](notes/README.md) folder has step-by-step written explanations for every topic — mental models first (the 🎒 backpack, the secret `this` slot, backpacks vs pockets), then line-by-line traces, then the traps and interview one-liners. Read them alongside the interactive tabs. Also covered there: `this` & the four binding rules, currying in the real world, event delegation, and how this repo's own Docker + CI setup works.
+
 ## 🧠 Key takeaways (the whole repo in six lines)
 
 1. **Closure** = a function + the variables of its birth scope, kept alive even after the outer function returns. It captures *variables, not values*.
