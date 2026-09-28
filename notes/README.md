@@ -16,6 +16,7 @@ Written notes for every topic in this repo. Each note builds a **mental model fi
 | 8 | [Currying](08-currying.md) | f(a)(b)(c), partial application, and where it's REALLY used |
 | 9 | [Events, Bubbling & Delegation](09-events-and-delegation.md) | The event object, the bubble journey, one listener for a thousand children |
 | 10 | [Tooling: Docker & CI](10-docker-and-ci.md) | Images vs containers, Dockerfile vs compose, GitHub Actions |
+| 11 | [Callbacks → Promises → async/await](11-callbacks-promises-async.md) | JS is synchronous; callbacks bring results back; promises and await package them |
 
 ## The connected map
 

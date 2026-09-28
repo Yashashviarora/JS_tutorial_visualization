@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Callbacks, Promises, Async</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 0 16px 80px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .heartbeat {
+    position: sticky; top: 0; z-index: 5; background: var(--card);
+    border-bottom: 1px solid var(--border); padding: 10px 16px; margin: 0 -16px 20px;
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: 0.9rem;
+  }
+  .heartbeat .clock { font-family: Consolas, monospace; color: var(--green); font-size: 1.05rem; font-weight: bold; }
+  .heartbeat .hint { color: var(--muted); font-size: 0.8rem; }
+  h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 26px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 26px;
+  }
+  .lesson h2 { font-size: 1.2rem; margin-bottom: 4px; }
+  .lesson h2 .num {
+    display: inline-block; background: var(--accent); color: #0f1220;
+    width: 28px; height: 28px; border-radius: 50%; text-align: center;
+    line-height: 28px; font-size: 0.9rem; margin-right: 8px;
+  }
+  .explain { color: var(--muted); margin: 8px 0 14px; font-size: 0.94rem; }
+  .explain strong { color: var(--text); }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; font-size: 0.78rem; line-height: 1.55;
+    font-family: Consolas, monospace; margin-bottom: 10px;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+  .cm { color: #5c6398; font-style: italic; } .numlit { color: #f78c6c; }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    margin: 3px 6px 3px 0;
+  }
+  button:active { transform: scale(0.95); }
+  button.red { background: var(--red); }
+  button.green { background: var(--green); }
+  button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+  .col { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-width: 0; }
+  .col h3 { font-size: 0.95rem; margin-bottom: 8px; }
+  .col.cb h3 { color: var(--yellow); } .col.pr h3 { color: var(--purple); } .col.aw h3 { color: var(--green); }
+  .log {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; font-family: Consolas, monospace; font-size: 0.78rem;
+    min-height: 120px; max-height: 220px; overflow-y: auto; margin-top: 8px;
+  }
+  .log div { padding: 1px 0; }
+  .log .ok { color: var(--green); } .log .bad { color: var(--red); }
+  .log .info { color: var(--muted); } .log .step { color: var(--text); }
+  .log .warn { color: var(--yellow); }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--card2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+    margin-bottom: 14px; cursor: pointer; font-size: 0.9rem;
+  }
+  .toggle input { width: 16px; height: 16px; accent-color: var(--red); }
+  .tip {
+    background: rgba(124,158,255,0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    color: var(--muted); margin-top: 12px;
+  }
+  .tip strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- sticky heartbeat: a JS-driven clock. If JavaScript is blocked, it stops. -->
+<div class="heartbeat">
+  <span>⏱ main-thread heartbeat: <span class="clock" id="clock">0.00s</span></span>
+  <button class="gray" id="poke">click me anytime: <span id="pokes">0</span></button>
+  <span class="hint">clock stops moving = JavaScript is frozen</span>
+</div>
+
+<div class="wrap">
+  <h1>⏳ Callbacks → Promises → <span>async/await</span></h1>
+  <p class="subtitle">
+    JavaScript itself is <strong style="color:var(--text)">synchronous</strong>: one call stack, one thing at a time.
+    The <strong style="color:var(--text)">browser</strong> does the waiting (timers, network).
+    Callbacks, promises and async/await are three ways of writing the same thing:
+    <em>"browser, call my code back when it's done."</em> Watch the heartbeat clock at the top the whole time.
+  </p>
+
+  <!-- ============ LESSON 1: proof JS is synchronous ============ -->
+  <div class="lesson">
+    <h2><span class="num">1</span>Proof: waiting in JavaScript freezes everything</h2>
+    <p class="explain">
+      Both buttons wait 3 seconds. The <strong>red</strong> one waits <em>inside JavaScript</em> with a busy loop.
+      The <strong>green</strong> one hands the waiting to the <em>browser</em> with setTimeout and a callback.
+      Click each, and while it waits, watch the heartbeat clock and try clicking "click me anytime".
+    </p>
+<pre><code><span class="cm">// ❌ synchronous wait: JavaScript itself is busy for 3s</span>
+<span class="kw">const</span> end = Date.<span class="fn">now</span>() + <span class="numlit">3000</span>;
+<span class="kw">while</span> (Date.<span class="fn">now</span>() &lt; end) {}          <span class="cm">// the one call stack is occupied</span>
+
+<span class="cm">// ✅ asynchronous wait: the browser waits, JavaScript is free</span>
+<span class="fn">setTimeout</span>(() =&gt; <span class="fn">log</span>(<span class="str">"done"</span>), <span class="numlit">3000</span>);   <span class="cm">// callback = "call this when done"</span></code></pre>
+    <button class="red" id="freeze">❌ wait 3s synchronously (freezes)</button>
+    <button class="green" id="nofreeze">✅ wait 3s with setTimeout (free)</button>
+    <div class="log" id="log1"><div class="info">→ try both and watch the clock</div></div>
+    <div class="tip"><strong>Notice with the red button:</strong> even the "starting…" log line only appears
+      <em>after</em> the 3 seconds. Drawing the screen also needs the main thread, so the page can't even
+      update while JavaScript is busy. That's why JavaScript never waits for slow work itself; it hands the work off and asks to be called back.</div>
+  </div>
+
+  <!-- ============ LESSON 2: same task, three styles ============ -->
+  <div class="lesson">
+    <h2><span class="num">2</span>One task, three styles: user → orders → invoice</h2>
+    <p class="explain">
+      Three fake server calls, each taking 800ms, and each needing the previous result.
+      The same job is written three ways. Run each one and compare the timestamps; they behave identically.
+      Keep clicking "click me anytime" while they run: the page never freezes.
+    </p>
+    <label class="toggle"><input type="checkbox" id="fail"> 💥 make getOrders fail (see how each style handles errors)</label>
+    <div class="cols">
+      <div class="col cb">
+        <h3>① Callbacks</h3>
+<pre><code><span class="fn">getUser</span>(<span class="numlit">7</span>, (err, user) =&gt; {
+  <span class="kw">if</span> (err) <span class="kw">return</span> <span class="fn">fail</span>(err);
+  <span class="fn">getOrders</span>(user, (err, orders) =&gt; {
+    <span class="kw">if</span> (err) <span class="kw">return</span> <span class="fn">fail</span>(err);
+    <span class="fn">getInvoice</span>(orders[<span class="numlit">0</span>], (err, inv) =&gt; {
+      <span class="kw">if</span> (err) <span class="kw">return</span> <span class="fn">fail</span>(err);
+      <span class="fn">done</span>(inv);
+    });
+  });
+});
+<span class="cm">// pyramid 🔺 + error check at EVERY level</span></code></pre>
+        <button id="run-cb">▶ run with callbacks</button>
+        <div class="log" id="log-cb"></div>
+      </div>
+      <div class="col pr">
+        <h3>② Promises</h3>
+<pre><code><span class="fn">getUser</span>(<span class="numlit">7</span>)
+  .<span class="fn">then</span>(user =&gt; <span class="fn">getOrders</span>(user))
+  .<span class="fn">then</span>(orders =&gt; <span class="fn">getInvoice</span>(orders[<span class="numlit">0</span>]))
+  .<span class="fn">then</span>(inv =&gt; <span class="fn">done</span>(inv))
+  .<span class="fn">catch</span>(err =&gt; <span class="fn">fail</span>(err));
+<span class="cm">// flat chain ➡ + ONE .catch for all steps</span>
+
+
+
+</code></pre>
+        <button id="run-pr">▶ run with promises</button>
+        <div class="log" id="log-pr"></div>
+      </div>
+      <div class="col aw">
+        <h3>③ async / await</h3>
+<pre><code><span class="kw">async function</span> <span class="fn">run</span>() {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> user   = <span class="kw">await</span> <span class="fn">getUser</span>(<span class="numlit">7</span>);
+    <span class="kw">const</span> orders = <span class="kw">await</span> <span class="fn">getOrders</span>(user);
+    <span class="kw">const</span> inv    = <span class="kw">await</span> <span class="fn">getInvoice</span>(orders[<span class="numlit">0</span>]);
+    <span class="fn">done</span>(inv);
+  } <span class="kw">catch</span> (err) { <span class="fn">fail</span>(err); }
+}
+<span class="cm">// reads top-to-bottom like sync code,</span>
+<span class="cm">// but never freezes the page</span></code></pre>
+        <button id="run-aw">▶ run with async/await</button>
+        <div class="log" id="log-aw"></div>
+      </div>
+    </div>
+    <button class="gray" id="run-all" style="margin-top:12px">▶▶ run all three at the same time</button>
+    <div class="tip"><strong>Look at the first lines of each log:</strong> the "returned instantly" message always appears at ~0ms,
+      before any result. In every style, JavaScript starts the work, moves on immediately, and gets called back later.
+      Run all three at once: they finish together, because all three were waiting in the browser in parallel.</div>
+  </div>
+
+  <!-- ============ LESSON 3: promises are callbacks underneath ============ -->
+  <div class="lesson">
+    <h2><span class="num">3</span>Proof: promises are callbacks in a nicer package</h2>
+    <p class="explain">
+      On this page, <strong>only the callback versions of the three functions were written by hand</strong>.
+      The promise versions used by styles ② and ③ were <em>generated</em> from them with this small helper,
+      a higher-order function using a closure (tabs 1 and 6):
+    </p>
+<pre><code><span class="kw">const</span> promisify = (fn) =&gt; (...args) =&gt;      <span class="cm">// HOF: callback-style fn in, promise-style fn out</span>
+  <span class="kw">new</span> <span class="fn">Promise</span>((resolve, reject) =&gt; {
+    <span class="fn">fn</span>(...args, (err, data) =&gt;            <span class="cm">// still calls the ORIGINAL callback function…</span>
+      err ? <span class="fn">reject</span>(err) : <span class="fn">resolve</span>(data));  <span class="cm">// …and turns its callback into resolve/reject</span>
+  });
+
+<span class="kw">const</span> getUser    = <span class="fn">promisify</span>(getUserCb);
+<span class="kw">const</span> getOrders  = <span class="fn">promisify</span>(getOrdersCb);
+<span class="kw">const</span> getInvoice = <span class="fn">promisify</span>(getInvoiceCb);</code></pre>
+    <p class="explain">
+      So under styles ② and ③ there is still a callback being called by setTimeout. The promise just receives it
+      and passes the result on to your <code>.then</code>. And <code>await</code> is built on <code>.then</code>:
+      the rest of the async function after each <code>await</code> is resumed through the microtask queue once the promise settles.
+    </p>
+    <pre><code>callback  →  wrapped in a promise  →  consumed with .then  →  or with await
+(what the browser calls)   (resolve/reject)   (you attach)    (looks like waiting, isn't)</code></pre>
+    <div class="tip"><strong>Try it in the Console (F12):</strong> type <code>getUser(7)</code> and press Enter.
+      You get <code>Promise {&lt;pending&gt;}</code> immediately. Run <code>await getUser(7)</code> and after 800ms you get the user object.</div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+/* ---------- heartbeat: a JS-driven clock (stops when JS is blocked) ---------- */
+const pageStart = performance.now();
+setInterval(() => {
+  $("clock").textContent = ((performance.now() - pageStart) / 1000).toFixed(2) + "s";
+}, 30);
+let pokes = 0;
+$("poke").onclick = () => { $("pokes").textContent = ++pokes; };
+
+function log(box, msg, cls, start) {
+  const line = document.createElement("div");
+  const ms = start === undefined ? "" : `[${Math.round(performance.now() - start)}ms] `;
+  line.textContent = ms + msg;
+  if (cls) line.className = cls;
+  $(box).appendChild(line);
+  $(box).scrollTop = $(box).scrollHeight;
+}
+
+/* ---------- Lesson 1 ---------- */
+$("freeze").onclick = () => {
+  const start = performance.now();
+  log("log1", "❌ starting a 3s busy loop… (you won't see this line until it ends)", "bad", start);
+  const end = Date.now() + 3000;
+  while (Date.now() < end) {}                // the only call stack is busy
+  log("log1", "❌ done. The clock was frozen and your clicks were ignored.", "bad", start);
+};
+$("nofreeze").onclick = () => {
+  const start = performance.now();
+  log("log1", "✅ asked the browser to wait 3s. JavaScript is free right now.", "ok", start);
+  setTimeout(() => {
+    log("log1", "✅ browser called our callback. The clock never stopped.", "ok", start);
+  }, 3000);
+};
+
+/* ---------- the fake server: written ONLY in callback style ---------- */
+const shouldFail = () => $("fail").checked;
+
+function getUserCb(id, callback) {
+  setTimeout(() => callback(null, { id, name: "Vivek" }), 800);
+}
+function getOrdersCb(user, callback) {
+  setTimeout(() => {
+    if (shouldFail()) callback(new Error("orders service is down"));
+    else callback(null, [{ id: 101, total: 499 }]);
+  }, 800);
+}
+function getInvoiceCb(order, callback) {
+  setTimeout(() => callback(null, { order: order.id, total: order.total }), 800);
+}
+
+/* ---------- promise versions GENERATED from the callback versions ---------- */
+const promisify = (fn) => (...args) =>
+  new Promise((resolve, reject) => {
+    fn(...args, (err, data) => (err ? reject(err) : resolve(data)));
+  });
+const getUser = promisify(getUserCb);
+const getOrders = promisify(getOrdersCb);
+const getInvoice = promisify(getInvoiceCb);
+
+/* ---------- ① callbacks ---------- */
+function runCallbacks() {
+  const L = "log-cb"; $(L).innerHTML = "";
+  const start = performance.now();
+  log(L, "calling getUser…", "step", start);
+  getUserCb(7, (err, user) => {
+    if (err) return log(L, "❌ " + err.message, "bad", start);
+    log(L, "got user " + user.name + " → calling getOrders…", "step", start);
+    getOrdersCb(user, (err, orders) => {
+      if (err) return log(L, "❌ caught at level 2: " + err.message, "bad", start);
+      log(L, "got " + orders.length + " order → calling getInvoice…", "step", start);
+      getInvoiceCb(orders[0], (err, inv) => {
+        if (err) return log(L, "❌ " + err.message, "bad", start);
+        log(L, "✅ invoice total ₹" + inv.total, "ok", start);
+      });
+    });
+  });
+  log(L, "getUser returned instantly; JS moved on", "warn", start);
+}
+
+/* ---------- ② promises ---------- */
+function runPromises() {
+  const L = "log-pr"; $(L).innerHTML = "";
+  const start = performance.now();
+  log(L, "calling getUser…", "step", start);
+  getUser(7)
+    .then((user) => {
+      log(L, "got user " + user.name + " → calling getOrders…", "step", start);
+      return getOrders(user);
+    })
+    .then((orders) => {
+      log(L, "got " + orders.length + " order → calling getInvoice…", "step", start);
+      return getInvoice(orders[0]);
+    })
+    .then((inv) => log(L, "✅ invoice total ₹" + inv.total, "ok", start))
+    .catch((err) => log(L, "❌ one .catch handled it: " + err.message, "bad", start));
+  log(L, "getUser returned a promise instantly; JS moved on", "warn", start);
+}
+
+/* ---------- ③ async / await ---------- */
+async function runAwaitBody(L, start) {
+  try {
+    log(L, "calling getUser…", "step", start);
+    const user = await getUser(7);
+    log(L, "got user " + user.name + " → calling getOrders…", "step", start);
+    const orders = await getOrders(user);
+    log(L, "got " + orders.length + " order → calling getInvoice…", "step", start);
+    const inv = await getInvoice(orders[0]);
+    log(L, "✅ invoice total ₹" + inv.total, "ok", start);
+  } catch (err) {
+    log(L, "❌ try/catch handled it: " + err.message, "bad", start);
+  }
+}
+function runAwait() {
+  const L = "log-aw"; $(L).innerHTML = "";
+  const start = performance.now();
+  runAwaitBody(L, start);                    // pauses at its first await…
+  log(L, "the async function returned a promise at its first await; JS moved on", "warn", start);
+}
+
+$("run-cb").onclick = runCallbacks;
+$("run-pr").onclick = runPromises;
+$("run-aw").onclick = runAwait;
+$("run-all").onclick = () => { runCallbacks(); runPromises(); runAwait(); };
+</script>
+</body>
+</html>

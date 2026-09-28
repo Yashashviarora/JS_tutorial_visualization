@@ -96,6 +96,9 @@ const pages = [
   { id: "curry", title: "8 · Currying", src: "currying-visualizer.html",
     desc: "f(a,b,c) → f(a)(b)(c): watch backpacks stack up as each call collects one argument, stop halfway for partial application (double/triple), and the interview classic — infinite currying sum(1)(2)(3)…().",
     tag: "closures as an argument-collecting machine" },
+  { id: "async", title: "9 · Callbacks → Promises → Async", src: "async-visualizer.html",
+    desc: "Proof that JavaScript itself is synchronous (a busy loop freezes the heartbeat clock; setTimeout doesn't), then one task written three ways — callbacks, promises, async/await — with a 'make it fail' switch, and proof that promises are callbacks underneath.",
+    tag: "watch the heartbeat clock at the top" },
 ];
 
 const nav = document.getElementById("nav");
