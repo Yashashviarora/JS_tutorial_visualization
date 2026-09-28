@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>once &amp; throttle</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #c084fc; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 26px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 26px;
+  }
+  .lesson h2 { font-size: 1.2rem; margin-bottom: 4px; }
+  .lesson h2 .num {
+    display: inline-block; background: var(--accent); color: #0f1220;
+    width: 28px; height: 28px; border-radius: 50%; text-align: center;
+    line-height: 28px; font-size: 0.9rem; margin-right: 8px;
+  }
+  .explain { color: var(--muted); margin: 8px 0 14px; font-size: 0.94rem; }
+  .explain strong { color: var(--text); }
+  .explain code { color: var(--green); font-family: Consolas, monospace; font-size: 0.85rem; }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; font-size: 0.82rem; line-height: 1.55;
+    font-family: Consolas, monospace; margin-bottom: 12px;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+  .cm { color: #5c6398; font-style: italic; } .numlit { color: #f78c6c; }
+  button, select {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin: 3px 6px 3px 0;
+  }
+  select { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  button:active { transform: scale(0.95); }
+  button.red { background: var(--red); }
+  button.green { background: var(--green); }
+  button.gray { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .box { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .box h3 { font-size: 0.95rem; margin-bottom: 8px; }
+  .box.bad h3 { color: var(--red); } .box.good h3 { color: var(--green); }
+  .big { font-size: 1.8rem; font-weight: bold; }
+  .bad .big { color: var(--red); } .good .big { color: var(--green); }
+  .lbl { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
+  .log {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; font-family: Consolas, monospace; font-size: 0.78rem;
+    height: 120px; overflow-y: auto; margin-top: 10px;
+  }
+  .log div { padding: 1px 0; }
+  .log .ok { color: var(--green); } .log .bad { color: var(--red); } .log .info { color: var(--muted); }
+  #pad {
+    height: 150px; border: 2px dashed var(--accent); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    color: var(--muted); background: var(--card2); margin: 12px 0; touch-action: none;
+    user-select: none; font-size: 0.95rem; padding: 10px;
+  }
+  canvas { width: 100%; height: 190px; display: block; background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px; }
+  .counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .count { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; }
+  .count .n { font-size: 1.5rem; font-weight: bold; }
+  .count.raw .n { color: var(--red); } .count.thr .n { color: var(--yellow); } .count.deb .n { color: var(--purple); }
+  .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; }
+  .tip {
+    background: rgba(124,158,255,0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem; color: var(--muted); margin-top: 12px;
+  }
+  .tip strong { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔂 <span>once()</span> &amp; 🚰 <span>throttle()</span></h1>
+  <p class="subtitle">
+    Two more closure utilities, from the same family as the counter factory and debounce.
+    Each one is a higher-order function: it takes your function and returns a guarded version of it,
+    with one remembered variable in its 🎒 backpack deciding whether your function is allowed to run.
+  </p>
+
+  <!-- ============ ONCE ============ -->
+  <div class="lesson">
+    <h2><span class="num">1</span>once(): the function can only run one time</h2>
+<pre><code><span class="kw">function</span> <span class="fn">once</span>(fn) {
+  <span class="kw">let</span> called = <span class="kw">false</span>;          <span class="cm">// 🎒 "have I run already?"</span>
+  <span class="kw">let</span> result;                  <span class="cm">// 🎒 the result of the first run</span>
+  <span class="kw">return function</span> (...args) {
+    <span class="kw">if</span> (called) <span class="kw">return</span> result;  <span class="cm">// every later call: skip fn, return the saved result</span>
+    called = <span class="kw">true</span>;
+    result = fn.<span class="fn">apply</span>(<span class="kw">this</span>, args);
+    <span class="kw">return</span> result;
+  };
+}
+<span class="kw">const</span> payOnce = <span class="fn">once</span>(() =&gt; <span class="fn">chargeCard</span>(<span class="numlit">499</span>));</code></pre>
+    <p class="explain">
+      Click each <strong>Pay</strong> button several times quickly, as an impatient user would.
+      This is the double-payment bug from the callbacks lesson, fixed on the client side.
+    </p>
+    <div class="pair">
+      <div class="box bad">
+        <h3>❌ plain function</h3>
+        <button class="red" id="pay-plain">Pay ₹499</button>
+        <div><span class="big" id="plain-count">0</span> <span class="lbl">times charged</span></div>
+        <div class="log" id="log-plain"></div>
+      </div>
+      <div class="box good">
+        <h3>✅ wrapped with once()</h3>
+        <button class="green" id="pay-once">Pay ₹499</button>
+        <div><span class="big" id="once-count">0</span> <span class="lbl">times charged</span></div>
+        <div class="log" id="log-once"></div>
+      </div>
+    </div>
+    <button class="gray" id="reset-once" style="margin-top:10px">↺ reset (creates a new once() wrapper = a new backpack)</button>
+    <div class="tip"><strong>See the backpack:</strong> open the Console (F12) and run <code>console.dir(payOnce)</code>,
+      then expand <code>[[Scopes]] → Closure</code>. Before clicking you'll see <code>called: false</code>;
+      after one click, <code>called: true</code> and the saved <code>result</code>.</div>
+  </div>
+
+  <!-- ============ THROTTLE ============ -->
+  <div class="lesson">
+    <h2><span class="num">2</span>throttle(): at most once every N milliseconds</h2>
+<pre><code><span class="kw">function</span> <span class="fn">throttle</span>(fn, limit) {
+  <span class="kw">let</span> lastRun = <span class="numlit">0</span>;                          <span class="cm">// 🎒 when did fn last run?</span>
+  <span class="kw">return function</span> (...args) {
+    <span class="kw">const</span> now = Date.<span class="fn">now</span>();
+    <span class="kw">if</span> (now - lastRun &lt; limit) <span class="kw">return</span>;      <span class="cm">// too soon since the last run: ignore this call</span>
+    lastRun = now;
+    fn.<span class="fn">apply</span>(<span class="kw">this</span>, args);
+  };
+}</code></pre>
+    <p class="explain">
+      Move your mouse (or finger) around inside the dashed box, then stop. The chart shows the last 5 seconds:
+      <strong style="color:var(--red)">every raw event</strong>, the calls let through by
+      <strong style="color:var(--yellow)">throttle</strong>, and the calls made by
+      <strong style="color:var(--purple)">debounce</strong>, all with the same delay.
+    </p>
+    <div class="controls">
+      delay:
+      <select id="limit">
+        <option value="200">200 ms</option>
+        <option value="500" selected>500 ms</option>
+        <option value="1000">1000 ms</option>
+      </select>
+      <button class="gray" id="reset-chart">↺ reset counts</button>
+    </div>
+    <div id="pad">move your mouse around in here<br>(then stop and watch the purple lane)</div>
+    <canvas id="chart"></canvas>
+    <div class="counts">
+      <div class="count raw"><div class="n" id="n-raw">0</div><div class="lbl">raw events</div></div>
+      <div class="count thr"><div class="n" id="n-thr">0</div><div class="lbl">throttled calls</div></div>
+      <div class="count deb"><div class="n" id="n-deb">0</div><div class="lbl">debounced calls</div></div>
+    </div>
+    <div class="tip"><strong>What to notice:</strong> while you keep moving, throttle fires steadily, about once per delay.
+      Debounce doesn't fire at all while you're moving, and fires once after you stop.
+      Throttle = "regularly, but not too often". Debounce = "only after things go quiet".</div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function log(box, msg, cls) {
+  const line = document.createElement("div");
+  line.textContent = msg; if (cls) line.className = cls;
+  $(box).appendChild(line); $(box).scrollTop = $(box).scrollHeight;
+}
+
+/* ---------------- once ---------------- */
+function once(fn) {
+  let called = false;
+  let result;
+  return function (...args) {
+    if (called) return result;
+    called = true;
+    result = fn.apply(this, args);
+    return result;
+  };
+}
+
+let plainCharges = 0, onceCharges = 0;
+function chargePlain(amount) {
+  plainCharges++;
+  $("plain-count").textContent = plainCharges;
+  return "txn_" + plainCharges;
+}
+function chargeOnce(amount) {
+  onceCharges++;
+  $("once-count").textContent = onceCharges;
+  return "txn_" + onceCharges;
+}
+
+$("pay-plain").onclick = () => {
+  const txn = chargePlain(499);
+  log("log-plain", `💳 charged ₹499 → ${txn}`, "bad");
+};
+
+var payOnce;
+function makePayOnce() {
+  payOnce = once(() => chargeOnce(499));
+}
+makePayOnce();
+$("pay-once").onclick = () => {
+  const before = onceCharges;
+  const txn = payOnce();
+  if (onceCharges > before) log("log-once", `💳 charged ₹499 → ${txn}`, "ok");
+  else log("log-once", `blocked, returned the saved result: ${txn}`, "info");
+};
+$("reset-once").onclick = () => {
+  plainCharges = onceCharges = 0;
+  $("plain-count").textContent = $("once-count").textContent = "0";
+  $("log-plain").innerHTML = $("log-once").innerHTML = "";
+  makePayOnce();
+  log("log-once", "new once() wrapper created: called = false again", "info");
+};
+
+/* ---------------- throttle vs debounce ---------------- */
+function throttle(fn, limit) {
+  let lastRun = 0;
+  return function (...args) {
+    const now = Date.now();
+    if (now - lastRun < limit) return;
+    lastRun = now;
+    fn.apply(this, args);
+  };
+}
+function debounce(fn, delay) {
+  let timerId = null;
+  return function (...args) {
+    clearTimeout(timerId);
+    timerId = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+let raw = [], thr = [], deb = [];
+let nRaw = 0, nThr = 0, nDeb = 0;
+let throttled, debounced;
+
+function build() {
+  const limit = Number($("limit").value);
+  throttled = throttle(() => { thr.push(performance.now()); $("n-thr").textContent = ++nThr; }, limit);
+  debounced = debounce(() => { deb.push(performance.now()); $("n-deb").textContent = ++nDeb; }, limit);
+}
+build();
+$("limit").onchange = build;
+$("reset-chart").onclick = () => {
+  raw = []; thr = []; deb = []; nRaw = nThr = nDeb = 0;
+  $("n-raw").textContent = $("n-thr").textContent = $("n-deb").textContent = "0";
+};
+
+$("pad").addEventListener("pointermove", () => {
+  raw.push(performance.now());
+  $("n-raw").textContent = ++nRaw;
+  throttled();
+  debounced();
+});
+
+/* chart: the last 5 seconds, newest on the right */
+const canvas = $("chart");
+const ctx = canvas.getContext("2d");
+const css = getComputedStyle(document.documentElement);
+const color = (v) => css.getPropertyValue(v).trim();
+const lanes = [
+  { name: "raw events", data: () => raw, c: color("--red"), r: 2 },
+  { name: "throttle",   data: () => thr, c: color("--yellow"), r: 5 },
+  { name: "debounce",   data: () => deb, c: color("--purple"), r: 5 },
+];
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.clientWidth * dpr;
+  canvas.height = canvas.clientHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+const WINDOW = 5000;
+function draw() {
+  const W = canvas.clientWidth, H = canvas.clientHeight, labelW = 90;
+  const now = performance.now();
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = "12px Segoe UI, sans-serif";
+  lanes.forEach((lane, i) => {
+    const y = (H / lanes.length) * (i + 0.5);
+    ctx.fillStyle = color("--muted");
+    ctx.fillText(lane.name, 10, y + 4);
+    ctx.strokeStyle = color("--border");
+    ctx.beginPath(); ctx.moveTo(labelW, y); ctx.lineTo(W - 8, y); ctx.stroke();
+    ctx.fillStyle = lane.c;
+    for (const t of lane.data()) {
+      const age = now - t;
+      if (age > WINDOW) continue;
+      const x = labelW + (1 - age / WINDOW) * (W - labelW - 8);
+      ctx.beginPath(); ctx.arc(x, y, lane.r, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+  const cutoff = now - WINDOW;
+  if (raw.length > 2000) raw = raw.filter((t) => t > cutoff);
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

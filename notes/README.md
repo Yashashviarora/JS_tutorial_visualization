@@ -17,6 +17,7 @@ Written notes for every topic in this repo. Each note builds a **mental model fi
 | 9 | [Events, Bubbling & Delegation](09-events-and-delegation.md) | The event object, the bubble journey, one listener for a thousand children |
 | 10 | [Tooling: Docker & CI](10-docker-and-ci.md) | Images vs containers, Dockerfile vs compose, GitHub Actions |
 | 11 | [Callbacks → Promises → async/await](11-callbacks-promises-async.md) | JS is synchronous; callbacks bring results back; promises and await package them |
+| 12 | [once() and throttle()](12-once-and-throttle.md) | Run only once; run at most every N ms; debounce vs throttle |
 
 ## The connected map
 
