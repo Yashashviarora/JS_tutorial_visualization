@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>fetch in DevTools</title>
+<style>
+  :root {
+    --bg: #0f1220; --card: #181c30; --card2: #1f2440; --text: #e8eaf6;
+    --muted: #9aa0c3; --accent: #7c9eff; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --border: #2b3152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+    color: var(--text); line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 0.95rem; }
+  .lesson {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; margin-bottom: 22px;
+  }
+  .lesson h2 { font-size: 1.1rem; margin-bottom: 6px; }
+  .lesson h2 .num {
+    display: inline-block; background: var(--accent); color: #0f1220;
+    width: 26px; height: 26px; border-radius: 50%; text-align: center;
+    line-height: 26px; font-size: 0.85rem; margin-right: 8px;
+  }
+  .explain { color: var(--muted); margin: 6px 0 12px; font-size: 0.93rem; }
+  .explain strong { color: var(--text); }
+  .explain code, li code { color: var(--green); font-family: Consolas, monospace; font-size: 0.85rem; }
+  ol { margin: 8px 0 12px 20px; color: var(--muted); font-size: 0.92rem; }
+  ol li { margin: 3px 0; }
+  ol li strong { color: var(--yellow); }
+  pre {
+    background: #0b0e1a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; font-size: 0.82rem; line-height: 1.55;
+    font-family: Consolas, monospace; margin-bottom: 12px;
+  }
+  .kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; } .cm { color: #5c6398; font-style: italic; }
+  button {
+    background: var(--accent); color: #0f1220; border: none; padding: 9px 16px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin: 3px 6px 3px 0;
+  }
+  button:active { transform: scale(0.95); }
+  button.red { background: var(--red); }
+  .card {
+    display: none; gap: 16px; align-items: center; background: var(--card2);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-top: 12px;
+  }
+  .card img { width: 72px; height: 72px; border-radius: 50%; }
+  .card .name { font-size: 1.1rem; font-weight: bold; }
+  .card .meta { color: var(--muted); font-size: 0.88rem; }
+  .warn {
+    background: rgba(251,191,36,0.08); border-left: 3px solid var(--yellow);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.9rem; color: var(--muted); margin-top: 10px;
+  }
+  .warn strong { color: var(--yellow); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌐 <span>fetch</span> — watch it in DevTools</h1>
+  <p class="subtitle">
+    The Namaste JavaScript example. <strong style="color:var(--text)">Press F12 first</strong> and keep DevTools open,
+    then run the steps in order. Each step shows the same fetch from a different DevTools panel.
+  </p>
+
+  <!-- ============ STEP 1 ============ -->
+  <div class="lesson">
+    <h2><span class="num">1</span>fetch returns a Promise immediately (Console)</h2>
+<pre><code><span class="kw">const</span> GITHUB_API = <span class="str">"https://api.github.com/users/akshaymarch7"</span>;
+
+<span class="kw">const</span> user = <span class="fn">fetch</span>(GITHUB_API);
+console.<span class="fn">log</span>(user);                 <span class="cm">// what is `user` at THIS moment?</span></code></pre>
+    <ol>
+      <li>Open the <strong>Console</strong> tab, then click the button.</li>
+      <li>The first line printed is <code>Promise {&lt;pending&gt;}</code>. The data doesn't exist yet; the request has only just been sent.</li>
+      <li><strong>Now click the ▸ arrow</strong> to expand that same logged promise. It shows <code>[[PromiseState]]: "fulfilled"</code>. It changed after it was logged, because Chrome shows the object's current state when you expand it.</li>
+      <li>1.5 seconds later the page logs the promise again: now even the collapsed line says <code>fulfilled</code>.</li>
+    </ol>
+    <button id="step1">▶ Step 1: const user = fetch(GITHUB_API)</button>
+  </div>
+
+  <!-- ============ STEP 2 ============ -->
+  <div class="lesson">
+    <h2><span class="num">2</span>The request itself (Network tab)</h2>
+    <ol>
+      <li>Switch to the <strong>Network</strong> tab, then click the button.</li>
+      <li>A row named <code>akshaymarch7</code> appears. That's the request the browser made for you, outside JavaScript.</li>
+      <li>Click the row:
+        <strong>Headers</strong> shows the URL, method (GET) and status (200);
+        <strong>Response</strong> shows the raw JSON the server sent;
+        <strong>Timing</strong> shows where the time went (connecting, waiting for the server, downloading).</li>
+      <li>Notice the Console tab's log lines appear while the request is still in the Network list as pending: JavaScript didn't wait for it.</li>
+    </ol>
+    <button id="step2">▶ Step 2: fetch while watching the Network tab</button>
+  </div>
+
+  <!-- ============ STEP 3 ============ -->
+  <div class="lesson">
+    <h2><span class="num">3</span>Set your own breakpoints (Sources tab)</h2>
+<pre><code><span class="kw">const</span> user = <span class="fn">fetch</span>(GITHUB_API);              <span class="cm">// breakpoint A</span>
+user.<span class="fn">then</span>(<span class="kw">function</span> (data) {
+  console.<span class="fn">log</span>(data);                          <span class="cm">// breakpoint B (inside .then)</span>
+});
+console.<span class="fn">log</span>(<span class="str">"button handler finished…"</span>);      <span class="cm">// breakpoint C</span></code></pre>
+    <ol>
+      <li>Open the <strong>Sources</strong> tab. In the left file tree, open <code>127.0.0.1:5500</code> → <code>fetch-devtools.js</code>. (Or press <strong>Ctrl+P</strong> and type <code>fetch-devtools</code>.)</li>
+      <li>Find the <code>STEP 3</code> block and click the <strong>line numbers</strong> of the three lines marked breakpoint A, B and C. A blue marker appears on each.</li>
+      <li>Click the Step 3 button. Before you resume, <strong>guess the order</strong> the three breakpoints will be hit in. Press <strong>F8</strong> to go from one to the next.</li>
+      <li>At <strong>A</strong>: <code>user</code> doesn't exist yet. Press <strong>F10</strong> (step over) once and look at <code>user</code> in the Scope panel: <code>Promise {&lt;pending&gt;}</code>.</li>
+      <li>At <strong>B</strong>: expand <code>data</code> in Scope. It's a <code>Response</code> object (<code>status: 200</code>, <code>ok: true</code>), but <strong>no user data yet</strong>; the body hasn't been read. Also look at the <strong>Call Stack</strong> panel: the button click handler isn't there. It finished long ago, and this callback was started later by the event loop as a microtask.</li>
+      <li>Click the blue markers again to remove them when you're done.</li>
+    </ol>
+    <button id="step3">▶ Step 3: pause inside .then</button>
+  </div>
+
+  <!-- ============ STEP 4 ============ -->
+  <div class="lesson">
+    <h2><span class="num">4</span>Getting the actual data: a second promise</h2>
+<pre><code><span class="fn">fetch</span>(GITHUB_API)
+  .<span class="fn">then</span>((response) =&gt; response.<span class="fn">json</span>())   <span class="cm">// reading the body is ALSO async → another promise</span>
+  .<span class="fn">then</span>((data) =&gt; {
+    console.<span class="fn">log</span>(data.name, data.followers);
+    <span class="fn">showCard</span>(data);
+  })
+  .<span class="fn">catch</span>((err) =&gt; console.<span class="fn">error</span>(<span class="str">"failed:"</span>, err));</code></pre>
+    <p class="explain">
+      Why two <code>.then</code>s? The first promise settles when the <strong>headers</strong> arrive.
+      The body may still be downloading, so <code>response.json()</code> returns <strong>another promise</strong>
+      that settles once the whole body is read and parsed. Returning it from the first <code>.then</code> makes the chain wait for it.
+    </p>
+    <button id="step4">▶ Step 4: fetch → json → show the profile</button>
+    <div class="card" id="card">
+      <img id="avatar" alt="avatar" />
+      <div><div class="name" id="name"></div><div class="meta" id="meta"></div></div>
+    </div>
+  </div>
+
+  <!-- ============ STEP 5 ============ -->
+  <div class="lesson">
+    <h2><span class="num">5</span>Errors: 404 does NOT reject, network failure does</h2>
+    <ol>
+      <li>Click <strong>"404 user"</strong>: it asks for a user that doesn't exist. The Network tab shows a red 404, but the Console shows the promise was <strong>fulfilled</strong>, with <code>ok: false</code>. fetch only rejects when no response arrives at all.</li>
+      <li>To see a real rejection: in the Network tab, change <strong>"No throttling"</strong> to <strong>"Offline"</strong>, then click <strong>"offline test"</strong>. Now <code>.catch</code> runs with <code>TypeError: Failed to fetch</code>. Switch back to "No throttling" afterwards.</li>
+    </ol>
+<pre><code><span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(url);
+<span class="kw">if</span> (!res.ok) <span class="kw">throw new</span> <span class="fn">Error</span>(<span class="str">"HTTP "</span> + res.status);   <span class="cm">// you must check this yourself</span></code></pre>
+    <button class="red" id="step5a">▶ 404 user</button>
+    <button class="red" id="step5b">▶ offline test</button>
+    <div class="warn"><strong>Rate limit:</strong> GitHub allows about 60 unauthenticated requests per hour per IP.
+      If you start getting status 403, wait a while before trying again.</div>
+  </div>
+</div>
+
+<script src="fetch-devtools.js"></script>
+</body>
+</html>

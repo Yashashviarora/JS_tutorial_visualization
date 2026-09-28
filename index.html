@@ -99,6 +99,9 @@ const pages = [
   { id: "async", title: "9 · Callbacks → Promises → Async", src: "async-visualizer.html",
     desc: "Proof that JavaScript itself is synchronous (a busy loop freezes the heartbeat clock; setTimeout doesn't), then one task written three ways — callbacks, promises, async/await — with a 'make it fail' switch, and proof that promises are callbacks underneath.",
     tag: "watch the heartbeat clock at the top" },
+  { id: "fetch", title: "10 · fetch in DevTools", src: "fetch-devtools.html",
+    desc: "The Namaste JS GitHub API example: see fetch return a pending promise in the Console, the real request in the Network tab, your own breakpoints inside .then in the Sources tab, why response.json() is a second promise, and why a 404 doesn't reject.",
+    tag: "open F12 before clicking anything" },
 ];
 
 const nav = document.getElementById("nav");
